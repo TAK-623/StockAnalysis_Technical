@@ -345,6 +345,69 @@ def calculate_ichimoku(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
+def calculate_trading_signals(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    取引シグナル(Buy/Sell)を計算します
+    
+    条件：
+    Buy シグナル:
+    - MACDがMACD_Signalを上回る
+    - RSI短期がRSI長期を上回る
+    - RSI長期が40以下
+    
+    Sell シグナル:
+    - MACDがMACD_Signalを下回る
+    - RSI短期がRSI長期を下回る
+    - RSI長期が60以上
+    
+    Args:
+        df: テクニカル指標が計算済みのデータフレーム
+        
+    Returns:
+        pd.DataFrame: シグナルを追加したデータフレーム
+    """
+    import config
+    
+    result = df.copy()
+    
+    # 必要な列が存在するか確認
+    required_columns = ['MACD', 'MACD_Signal', f'RSI{config.RSI_SHORT_PERIOD}', f'RSI{config.RSI_LONG_PERIOD}']
+    missing_columns = [col for col in required_columns if col not in result.columns]
+    
+    if missing_columns:
+        logger = logging.getLogger("StockSignal")
+        logger.warning(f"シグナル計算に必要なカラムがありません: {missing_columns}")
+        result['Signal'] = ''
+        return result
+    
+    # シグナル列を追加
+    result['Signal'] = ''
+    
+    # RSI短期・長期の列名を取得
+    rsi_short_col = f'RSI{config.RSI_SHORT_PERIOD}'
+    rsi_long_col = f'RSI{config.RSI_LONG_PERIOD}'
+    
+    # Buyシグナルの条件
+    buy_condition = (
+        (result['MACD'] > result['MACD_Signal']) & 
+        (result[rsi_short_col] > result[rsi_long_col]) & 
+        (result[rsi_long_col] <= 40)
+    )
+    
+    # Sellシグナルの条件
+    sell_condition = (
+        (result['MACD'] < result['MACD_Signal']) & 
+        (result[rsi_short_col] < result[rsi_long_col]) & 
+        (result[rsi_long_col] >= 60)
+    )
+    
+    # シグナル値を設定
+    result.loc[buy_condition, 'Signal'] = 'Buy'
+    result.loc[sell_condition, 'Signal'] = 'Sell'
+    
+    return result
+
+
 def calculate_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     """
     すべてのテクニカル指標を計算します
@@ -371,6 +434,9 @@ def calculate_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     
     # 一目均衡表
     result = calculate_ichimoku(result)
+    
+    # 取引シグナル
+    result = calculate_trading_signals(result)
     
     return result
 
@@ -443,8 +509,12 @@ def process_data_for_ticker(ticker: str, data_dir: str, output_dir: str) -> Tupl
         nan_columns = latest_data.columns[latest_data.isna().any()].tolist()
         if nan_columns:
             logger.warning(f"銘柄 {ticker} の最新データにNaN値があります: {nan_columns}")
-            # NaNを0で埋める
-            latest_data = latest_data.fillna(0)
+            # NaNを0で埋める（ただし、文字列カラムは空文字にする）
+            for col in nan_columns:
+                if col == 'Signal' or col == 'Ichimoku_SanYaku' or col == 'Ichimoku_Cloud_Status':
+                    latest_data[col] = latest_data[col].fillna('')
+                else:
+                    latest_data[col] = latest_data[col].fillna(0)
         
         # 最新データのみを別ファイルに保存
         latest_data.to_csv(latest_output_file)
@@ -570,65 +640,3 @@ def calculate_signals(tickers: List[str], is_test_mode: bool = False) -> Dict[st
             logger.error(f"テクニカル指標の統合ファイル作成中にエラーが発生しました: {str(e)}")
     
     return results
-
-def calculate_trading_signals(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    取引シグナル(Buy/Sell)を計算します
-    
-    条件：
-    Buy シグナル:
-    - MACDがMACD_Signalを上回る
-    - RSI短期がRSI長期を上回る
-    - RSI長期が40以下
-    
-    Sell シグナル:
-    - MACDがMACD_Signalを下回る
-    - RSI短期がRSI長期を下回る
-    - RSI長期が60以上
-    
-    Args:
-        df: テクニカル指標が計算済みのデータフレーム
-        
-    Returns:
-        pd.DataFrame: シグナルを追加したデータフレーム
-    """
-    import config
-    
-    result = df.copy()
-    
-    # 必要な列が存在するか確認
-    required_columns = ['MACD', 'MACD_Signal', f'RSI{config.RSI_SHORT_PERIOD}', f'RSI{config.RSI_LONG_PERIOD}']
-    missing_columns = [col for col in required_columns if col not in result.columns]
-    
-    if missing_columns:
-        logger = logging.getLogger("StockSignal")
-        logger.warning(f"シグナル計算に必要なカラムがありません: {missing_columns}")
-        result['Signal'] = ''
-        return result
-    
-    # シグナル列を追加
-    result['Signal'] = ''
-    
-    # RSI短期・長期の列名を取得
-    rsi_short_col = f'RSI{config.RSI_SHORT_PERIOD}'
-    rsi_long_col = f'RSI{config.RSI_LONG_PERIOD}'
-    
-    # Buyシグナルの条件
-    buy_condition = (
-        (result['MACD'] > result['MACD_Signal']) & 
-        (result[rsi_short_col] > result[rsi_long_col]) & 
-        (result[rsi_long_col] <= 40)
-    )
-    
-    # Sellシグナルの条件
-    sell_condition = (
-        (result['MACD'] < result['MACD_Signal']) & 
-        (result[rsi_short_col] < result[rsi_long_col]) & 
-        (result[rsi_long_col] >= 60)
-    )
-    
-    # シグナル値を設定
-    result.loc[buy_condition, 'Signal'] = 'Buy'
-    result.loc[sell_condition, 'Signal'] = 'Sell'
-    
-    return result
