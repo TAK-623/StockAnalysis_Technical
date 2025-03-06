@@ -21,7 +21,9 @@ TECHNICAL_DIR = os.path.join(BASE_DIR, "TechnicalSignal")
 TEST_TECHNICAL_DIR = os.path.join(TEST_DIR, "TechnicalSignal")
 
 # 株価データ取得設定
-BATCH_SIZE = 10  # 一度に取得する企業数
+BATCH_SIZE = 100  # 一度に取得する企業数
+BATCH_WAIT_TIME = 5  # バッチ間の待機時間（秒）
+TICKER_WAIT_TIME = 0.5  # 銘柄間の待機時間（秒）
 HISTORY_PERIOD = "6mo"  # 取得期間（6ヶ月）
 
 # ログ設定

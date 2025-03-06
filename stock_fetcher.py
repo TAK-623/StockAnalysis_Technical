@@ -9,13 +9,13 @@ import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-def fetch_stock_data(tickers: List[str], batch_size: int = 10, is_test_mode: bool = False) -> Dict[str, Optional[pd.DataFrame]]:
+def fetch_stock_data(tickers: List[str], batch_size: int = None, is_test_mode: bool = False) -> Dict[str, Optional[pd.DataFrame]]:
     """
     指定された銘柄コードリストに対して、バッチ処理で株価データを取得します
     
     Args:
         tickers: 銘柄コードのリスト
-        batch_size: 一度に処理する銘柄の数
+        batch_size: 一度に処理する銘柄の数 (指定がない場合はconfig.BATCH_SIZEを使用)
         is_test_mode: テストモードかどうか
         
     Returns:
@@ -25,6 +25,10 @@ def fetch_stock_data(tickers: List[str], batch_size: int = 10, is_test_mode: boo
     
     logger = logging.getLogger("StockSignal")
     stock_data = {}
+    
+    # batch_sizeが指定されていない場合はconfig.pyから取得
+    if batch_size is None:
+        batch_size = config.BATCH_SIZE
     
     # 保存用ディレクトリの設定
     data_dir = config.TEST_RESULT_DIR if is_test_mode else config.RESULT_DIR
@@ -60,14 +64,17 @@ def fetch_stock_data(tickers: List[str], batch_size: int = 10, is_test_mode: boo
                 
                 stock_data[ticker] = hist
                 
+                # 銘柄間の待機時間を設定
+                time.sleep(config.TICKER_WAIT_TIME)
+                
             except Exception as e:
                 logger.error(f"銘柄 {ticker} のデータ取得中にエラーが発生しました: {str(e)}")
                 stock_data[ticker] = None
         
         # API制限を避けるために少し待機
         if i + batch_size < len(tickers):
-            logger.info("API制限を避けるために2秒間待機します...")
-            time.sleep(2)
+            logger.info(f"API制限を避けるために{config.BATCH_WAIT_TIME}秒間待機します...")
+            time.sleep(config.BATCH_WAIT_TIME)
     
     logger.info(f"株価データの取得が完了しました。成功: {sum(1 for v in stock_data.values() if v is not None)}社, 失敗: {sum(1 for v in stock_data.values() if v is None)}社")
     

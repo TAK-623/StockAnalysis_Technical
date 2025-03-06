@@ -40,8 +40,8 @@ def main():
             logger.error("企業リストが空です。処理を終了します。")
             return 1
         
-        # 株価データの取得（テストモードを渡す）
-        stock_data = fetch_stock_data(tickers, config.BATCH_SIZE, is_test_mode)
+        # 株価データの取得（バッチサイズなどの設定はすべてconfigから取得）
+        stock_data = fetch_stock_data(tickers, is_test_mode=is_test_mode)
         
         # テクニカル指標の計算
         logger.info("テクニカル指標の計算を開始します...")
