@@ -13,8 +13,8 @@ COMPANY_LIST_FILE = "company_list_20250228.csv"
 COMPANY_LIST_TEST_FILE = "company_list_20250228_test.csv"
 
 # 結果出力先
-RESULT_DIR = os.path.join(BASE_DIR, "Result")
-TEST_RESULT_DIR = os.path.join(TEST_DIR, "Result")
+RESULT_DIR = os.path.join(BASE_DIR, "Data")
+TEST_RESULT_DIR = os.path.join(TEST_DIR, "Data")
 
 # テクニカル指標出力先
 TECHNICAL_DIR = os.path.join(BASE_DIR, "TechnicalSignal")
