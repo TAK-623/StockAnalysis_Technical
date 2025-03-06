@@ -53,7 +53,7 @@ def post_to_wordpress(title, post_content):
         "title": title,
         "content": post_content,
         "status": "publish",  # 投稿を公開する
-        "categories": [20],
+        "categories": [22],
         "tags": [19],
         "featured_media": 233
     }
