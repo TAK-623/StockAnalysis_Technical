@@ -16,6 +16,7 @@ import config
 from data_loader import setup_logger, load_company_list
 from stock_fetcher import fetch_stock_data
 from technical_indicators import calculate_signals
+from extract_signals import extract_signals
 
 def main():
     """メイン処理"""
@@ -49,6 +50,15 @@ def main():
         try:
             signal_results = calculate_signals(tickers, is_test_mode)
             logger.info("テクニカル指標の計算が完了しました。")
+            
+            # シグナル抽出処理の追加
+            logger.info("Buy/Sellシグナルの抽出を開始します...")
+            extract_success = extract_signals(is_test_mode)
+            if extract_success:
+                logger.info("Buy/Sellシグナルの抽出が完了しました。")
+            else:
+                logger.error("Buy/Sellシグナルの抽出中にエラーが発生しました。")
+            
         except Exception as e:
             logger.error(f"テクニカル指標の計算中にエラーが発生しました: {str(e)}")
         
