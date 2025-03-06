@@ -81,18 +81,18 @@ def main():
     # The file token.json stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
-    if os.path.exists('C:\\Users\\mount\\Git\\MyProject\\stockSignal\\token.json'):
-        creds = Credentials.from_authorized_user_file('C:\\Users\\mount\\Git\\MyProject\\stockSignal\\token.json', SCOPES)
+    if os.path.exists('C:\\Users\\mount\\Git\\StockSignal\\token.json'):
+        creds = Credentials.from_authorized_user_file('C:\\Users\\mount\\Git\\StockSignal\\token.json', SCOPES)
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
-                'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\credentials.json', SCOPES)
+                'C:\\Users\\mount\\Git\\StockSignal\\credentials.json', SCOPES)
             creds = flow.run_local_server(port=8080)  # ここでポート番号を指定
         # Save the credentials for the next run
-        with open('C:\\Users\\mount\\Git\\MyProject\\stockSignal\\token.json', 'w') as token:
+        with open('C:\\Users\\mount\\Git\\StockSignal\\token.json', 'w') as token:
             token.write(creds.to_json())
 
     drive_service = build('drive', 'v3', credentials=creds)
@@ -107,10 +107,10 @@ def main():
 
     # ファイルのアップロードとGoogleスプレッドシートへの変換(並び替えありファイル)
     files_to_upload = [
-        'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\Result.csv',
-        'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\Extract.csv',
-        'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\Result_ichimoku.csv',
-        'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\Extract_ichimoku.csv',
+        # 'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\Result.csv',
+        # 'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\Extract.csv',
+        # 'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\Result_ichimoku.csv',
+        # 'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\Extract_ichimoku.csv',
     ]
     for file_path in files_to_upload:
         file_id = upload_file(drive_service, file_path, yyyymmdd_folder_id)
@@ -120,14 +120,8 @@ def main():
         sort_spreadsheet(sheets_service.spreadsheets(), sheet_id, sheet_name)
     # ファイルのアップロードとGoogleスプレッドシートへの変換(並び替え不要ファイル)
     files_to_upload_no_sort = [
-        'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\Result_detail.csv',
-        # "C:\\Users\\mount\\Git\\MyProject\\stockSignal\\ichimoku_for_blog.csv",
-        'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\ichimoku_for_blog_kouten.csv',
-        'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\ichimoku_for_blog_anten.csv',
-        'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\ichimoku_for_blog_kouten_start.csv',
-        'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\ichimoku_for_blog_anten_start.csv',
-        'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\ichimoku_for_blog_kouten_end.csv',
-        'C:\\Users\\mount\\Git\\MyProject\\stockSignal\\ichimoku_for_blog_anten_end.csv',
+        'C:\\Users\\mount\\Git\\StockSignal\\Result\\signal_result_buy.csv',
+        'C:\\Users\\mount\\Git\\StockSignal\\Result\\signal_result_sell.csv',
     ]
     for file_path in files_to_upload_no_sort:
         file_id = upload_file(drive_service, file_path, yyyymmdd_folder_id)

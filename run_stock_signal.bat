@@ -6,5 +6,8 @@ python main.py
 echo main.pyの処理が完了しました。
 echo WordPress へのアップロードを開始します...
 python Upload_WardPress.py
+echo WordPressへのアップロードが完了しました。
+echo CSVファイルのアップロードを開始します...
+python Upload_csv.py
 echo すべての処理が完了しました。
 pause
