@@ -21,7 +21,6 @@ intro_text = """
 <p>S: スタンダード市場の銘柄</p>
 <p>G: グロース市場の銘柄</p>
 </div>
-<p>※三役好転・三役暗転の判定は2025/1/19以降の実施のため、それ以前に三役好転・三役暗転状態になっている銘柄は抽出できていません。</p>
 """.format(yesterday_date=yesterday_date)
 
 # CSVファイルを読み込む関数
@@ -73,111 +72,52 @@ def post_to_wordpress(title, post_content):
 # メイン処理
 def main():
     # CSVファイルのパス
-    kouten_csv_file_path = "C:\\Users\\mount\\Git\\MyProject\\stockSignal\\ichimoku_for_blog_kouten.csv"
-    anten_csv_file_path = "C:\\Users\\mount\\Git\\MyProject\\stockSignal\\ichimoku_for_blog_anten.csv"
-    kouten_start_csv_file_path = "C:\\Users\\mount\\Git\\MyProject\\stockSignal\\ichimoku_for_blog_kouten_start.csv"
-    anten_start_csv_file_path = "C:\\Users\\mount\\Git\\MyProject\\stockSignal\\ichimoku_for_blog_anten_start.csv"
-    kouten_end_csv_file_path = "C:\\Users\\mount\\Git\\MyProject\\stockSignal\\ichimoku_for_blog_kouten_end.csv"
-    anten_end_csv_file_path = "C:\\Users\\mount\\Git\\MyProject\\stockSignal\\ichimoku_for_blog_anten_end.csv"
+    signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockSignal\\Result\\signal_result_buy.csv"
+    signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockSignal\\Result\\signal_result_sell.csv"
     
     # 各CSVファイルを読み込んで Ticker 列で昇順ソートし、再度保存
-    for file_path in [kouten_csv_file_path, anten_csv_file_path, kouten_start_csv_file_path, anten_start_csv_file_path, kouten_end_csv_file_path, anten_end_csv_file_path]:
+    for file_path in [signal_buy_csv_file_path, signal_sell_csv_file_path]:
         df = pd.read_csv(file_path, encoding='utf-8')  # CSVファイルを読み込む
         df_sorted = df.sort_values(by='Ticker')  # Ticker 列を昇順ソート
         df_sorted.to_csv(file_path, index=False, encoding='utf-8')  # ソート後に保存
     
     # CSVをHTML表に変換
-    html_table_kouten = read_csv_to_html_table(kouten_csv_file_path)
-    html_table_anten = read_csv_to_html_table(anten_csv_file_path)
-    html_table_kouten_start = read_csv_to_html_table(kouten_start_csv_file_path)
-    html_table_anten_start = read_csv_to_html_table(anten_start_csv_file_path)
-    html_table_kouten_end = read_csv_to_html_table(kouten_end_csv_file_path)
-    html_table_anten_end = read_csv_to_html_table(anten_end_csv_file_path)
+    html_table_buy = read_csv_to_html_table(signal_buy_csv_file_path)
+    html_table_sell = read_csv_to_html_table(signal_sell_csv_file_path)
     
     # 投稿のタイトルと内容
-    post_title = "一目均衡表情報_{yesterday_date}".format(yesterday_date=yesterday_date)  # 投稿タイトル
+    post_title = "売り買いシグナル_{yesterday_date}".format(yesterday_date=yesterday_date)  # 投稿タイトル
     
     post_content = f"""
         {intro_text}
-        <h2>一目均衡表</h2>
-        <p>三役好転・三役暗転の情報を抽出しました</p>
-        <h3>三役好転銘柄</h3>
+        <h2>売り買いシグナル</h2>
+        <p>独自の条件でフィルタリングした銘柄を抽出しています。</p>
+        <h3>買いシグナル銘柄</h3>
         <p><!-- wp:st-blocks/st-slidebox --></p>
         <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
         <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
         <div class="st-slidebox" data-st-slidebox-content="">
         <div class="scroll-box">
-        三役好転テーブル
-        {html_table_kouten}
+        買いシグナルテーブル
+        {html_table_buy}
         </div>
         </div>
         </div>
         <p><!-- /wp:st-blocks/st-slidebox --></p>
         
-        <h3>三役暗転銘柄</h3>
+        <h3>売りシグナル銘柄</h3>
         <p><!-- wp:st-blocks/st-slidebox --></p>
         <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
         <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
         <div class="st-slidebox" data-st-slidebox-content="">
         <div class="scroll-box">
-        三役暗転テーブル
-        {html_table_anten}
+        売りシグナルテーブル
+        {html_table_sell}
         </div>
         </div>
         </div>
         <p><!-- /wp:st-blocks/st-slidebox --></p>
         
-        <h3>三役好転した銘柄</h3>
-        <p><!-- wp:st-blocks/st-slidebox --></p>
-        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-        <div class="st-slidebox" data-st-slidebox-content="">
-        <div class="scroll-box">
-        三役好転開始テーブル
-        {html_table_kouten_start}
-        </div>
-        </div>
-        </div>
-        <p><!-- /wp:st-blocks/st-slidebox --></p>
-        
-        <h3>三役暗転した銘柄</h3>
-        <p><!-- wp:st-blocks/st-slidebox --></p>
-        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-        <div class="st-slidebox" data-st-slidebox-content="">
-        <div class="scroll-box">
-        三役暗転開始テーブル
-        {html_table_anten_start}
-        </div>
-        </div>
-        </div>
-        <p><!-- /wp:st-blocks/st-slidebox --></p>
-        
-        <h3>三役好転が終了した銘柄</h3>
-        <p><!-- wp:st-blocks/st-slidebox --></p>
-        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-        <div class="st-slidebox" data-st-slidebox-content="">
-        <div class="scroll-box">
-        三役好転終了テーブル
-        {html_table_kouten_end}
-        </div>
-        </div>
-        </div>
-        <p><!-- /wp:st-blocks/st-slidebox --></p>
-        
-        <h3>三役暗転が終了した銘柄</h3>
-        <p><!-- wp:st-blocks/st-slidebox --></p>
-        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-        <div class="st-slidebox" data-st-slidebox-content="">
-        <div class="scroll-box">
-        三役暗転終了テーブル
-        {html_table_anten_end}
-        </div>
-        </div>
-        </div>
-        <p><!-- /wp:st-blocks/st-slidebox --></p>
         """
     
     # WordPressに投稿
