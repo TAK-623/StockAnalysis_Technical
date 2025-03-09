@@ -27,13 +27,30 @@ yesterday_date = (current_date - timedelta(days=1)).strftime("%Y/%m/%d")  # YYYY
 # 投稿の説明文と銘柄コードの解説を含む
 intro_text = """
 <p>{yesterday_date}終わり時点での情報です。</p>
-<p>Pythonを使用して自動でデータ収集&演算を行い、自動で投稿しています。</p>
-<p>銘柄名冒頭のアルファベットの意味は下記です。</p>
+<p>Pythonを使用して自動でデータ収集&演算を行っています。</p>
+<p>銘柄名に付いているアルファベットで市場を表しています。</p>
 <div class="graybox">
 <p>P: プライム市場の銘柄</p>
 <p>S: スタンダード市場の銘柄</p>
 <p>G: グロース市場の銘柄</p>
 </div>
+<p></p>
+<p>シグナルは下記の条件で導出しています。</p>
+[st-mybox title="買いシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
+<ol>
+<li>MACDがMACDシグナルを上回っている</li>
+<li>RSI短期がRSI長期を上回っている</li>
+<li>RSI長期が40以下</li>
+</ol>
+[/st-mybox]
+[st-mybox title="売りシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
+<ol>
+<li>MACDがMACDシグナルを下回っている</li>
+<li>RSI短期がRSI長期を下回っている</li>
+<li>RSI長期が60以上</li>
+</ol>
+[/st-mybox]
+<p></p>
 """.format(yesterday_date=yesterday_date)
 
 def read_csv_to_html_table(csv_file_path, decimal_places=2):
@@ -130,15 +147,15 @@ def main():
     html_table_sell = read_csv_to_html_table(signal_sell_csv_file_path) # 売りシグナルテーブル
     
     # 投稿のタイトルと内容を作成
-    post_title = "売り買いシグナル_{yesterday_date}".format(yesterday_date=yesterday_date)  # 投稿タイトル
+    post_title = "売買シグナル_{yesterday_date}".format(yesterday_date=yesterday_date)  # 投稿タイトル
     
     # 投稿本文のHTML構成
     # WordPressテーマ「AFFINGER」用のスライドボックスブロックを使用
     # 初期状態では折りたたまれており、クリックで展開される
     post_content = f"""
         {intro_text}
-        <h2>売り買いシグナル</h2>
-        <p>独自の条件でフィルタリングした銘柄を抽出しています。</p>
+        <h2>売買シグナル</h2>
+        <p>前述の条件でフィルタリングした銘柄を抽出しています。</p>
         <h3>買いシグナル銘柄</h3>
         <p><!-- wp:st-blocks/st-slidebox --></p>
         <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
