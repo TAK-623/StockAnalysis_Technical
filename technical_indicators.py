@@ -445,72 +445,294 @@ def calculate_trading_signals(df: pd.DataFrame) -> pd.DataFrame:
     """
     取引シグナル(Buy/Sell)を計算します
     
-    すでに計算済みのテクニカル指標を組み合わせて、
-    買いシグナルと売りシグナルを生成します。
-    
     条件：
     Buy シグナル:
-    - MACDがMACD_Signalを上回る（上昇モメンタム）
-    - RSI短期がRSI長期を上回る（短期的な強さ）
-    - RSI長期が40以下（まだ買われすぎではない）
+    - MACDがMACD_Signalを上回る
+    - RSI短期がRSI長期を上回る
+    - RSI長期が40以下
     
     Sell シグナル:
-    - MACDがMACD_Signalを下回る（下降モメンタム）
-    - RSI短期がRSI長期を下回る（短期的な弱さ）
-    - RSI長期が60以上（まだ売られすぎではない）
+    - MACDがMACD_Signalを下回る
+    - RSI短期がRSI長期を下回る
+    - RSI長期が60以上
     
     Args:
         df: テクニカル指標が計算済みのデータフレーム
         
     Returns:
-        pd.DataFrame: シグナル（Buy/Sell）を追加したデータフレーム
+        pd.DataFrame: シグナルを追加したデータフレーム
     """
     import config
     
-    # 元のデータを変更しないようにコピーを作成
     result = df.copy()
     
     # 必要な列が存在するか確認
-    # この関数はMACDとRSIの計算結果に依存するため、
-    # これらのカラムが存在しない場合はエラーを出力
     required_columns = ['MACD', 'MACD_Signal', f'RSI{config.RSI_SHORT_PERIOD}', f'RSI{config.RSI_LONG_PERIOD}']
     missing_columns = [col for col in required_columns if col not in result.columns]
     
     if missing_columns:
-        # 必要なカラムが不足している場合は警告ログを出力
         logger = logging.getLogger("StockSignal")
         logger.warning(f"シグナル計算に必要なカラムがありません: {missing_columns}")
-        # 空のシグナル列を追加して処理を続行
         result['Signal'] = ''
         return result
     
-    # シグナル列を追加（初期値は空文字列）
+    # シグナル列を追加
     result['Signal'] = ''
     
     # RSI短期・長期の列名を取得
     rsi_short_col = f'RSI{config.RSI_SHORT_PERIOD}'
     rsi_long_col = f'RSI{config.RSI_LONG_PERIOD}'
     
-    # Buyシグナルの条件（以下の3条件をすべて満たす場合）
-    # 1. MACD > MACD_Signal：上昇モメンタムが発生
-    # 2. RSI短期 > RSI長期：短期的な上昇トレンドが発生
-    # 3. RSI長期 <= 40：まだ買われすぎの状態ではない
+    # Buyシグナルの条件
     buy_condition = (
         (result['MACD'] > result['MACD_Signal']) & 
         (result[rsi_short_col] > result[rsi_long_col]) & 
         (result[rsi_long_col] <= 40)
     )
     
-    # Sellシグナルの条件（以下の3条件をすべて満たす場合）
-    # 1. MACD < MACD_Signal：下降モメンタムが発生
-    # 2. RSI短期 < RSI長期：短期的な下降トレンドが発生
-    # 3. RSI長期 >= 60：まだ売られすぎの状態ではない
+    # Sellシグナルの条件
     sell_condition = (
         (result['MACD'] < result['MACD_Signal']) & 
         (result[rsi_short_col] < result[rsi_long_col]) & 
         (result[rsi_long_col] >= 60)
     )
     
-    # 条件に合致する行にシグナル値を設定
-    result.loc[buy_condition, 'Signal'] = 'Buy'   # 買いシグナル
-    result.loc[sell_condition, 'Signal'] = 'Sell'  # 売りシグナル
+    # シグナル値を設定
+    result.loc[buy_condition, 'Signal'] = 'Buy'
+    result.loc[sell_condition, 'Signal'] = 'Sell'
+    
+    return result
+
+
+def calculate_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    すべてのテクニカル指標を計算します
+    
+    Args:
+        df: 株価データ
+        
+    Returns:
+        pd.DataFrame: テクニカル指標を追加したデータフレーム
+    """
+    result = df.copy()
+    
+    # 移動平均線
+    result = calculate_moving_averages(result)
+    
+    # MACD
+    result = calculate_macd(result)
+    
+    # RSI
+    result = calculate_rsi(result)
+    
+    # RCI
+    result = calculate_rci(result)
+    
+    # 一目均衡表
+    result = calculate_ichimoku(result)
+    
+    # 取引シグナル
+    result = calculate_trading_signals(result)
+    
+    return result
+
+
+def process_data_for_ticker(ticker: str, data_dir: str, output_dir: str) -> Tuple[bool, Optional[pd.DataFrame]]:
+    """
+    特定の銘柄のデータを処理し、テクニカル指標を計算してCSVに保存します
+    
+    Args:
+        ticker: 銘柄コード
+        data_dir: データが保存されているディレクトリ
+        output_dir: 出力先ディレクトリ
+        
+    Returns:
+        Tuple[bool, Optional[pd.DataFrame]]: 処理が成功したかどうかと、最新の指標データ
+    """
+    logger = logging.getLogger("StockSignal")
+    
+    try:
+        # ファイルパスの作成
+        input_file = os.path.join(data_dir, f"{ticker}.csv")
+        output_file = os.path.join(output_dir, f"{ticker}_signal.csv")
+        latest_output_file = os.path.join(output_dir, f"{ticker}_latest_signal.csv")
+        
+        # 入力ファイルの存在確認
+        if not os.path.exists(input_file):
+            logger.warning(f"銘柄 {ticker} のデータファイルが見つかりません: {input_file}")
+            return False, None
+        
+        # データの読み込み
+        df = pd.read_csv(input_file, index_col=0, parse_dates=True)
+        
+        # データの有効性確認
+        if df.empty:
+            logger.warning(f"銘柄 {ticker} のデータが空です")
+            return False, None
+        
+        # インデックスが日付型であることを確認
+        if not isinstance(df.index, pd.DatetimeIndex):
+            logger.warning(f"銘柄 {ticker} のインデックスが日付型ではありません")
+            return False, None
+        
+        # 必要なカラムの確認
+        required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            logger.warning(f"銘柄 {ticker} のデータに必要なカラムがありません: {missing_columns}")
+            return False, None
+        
+        # 欠損値の処理
+        df = df.fillna(method='ffill').fillna(method='bfill')
+        
+        # データ数の確認
+        logger.info(f"銘柄 {ticker} のデータ数: {len(df)}行")
+        
+        # テクニカル指標の計算
+        signal_df = calculate_all_indicators(df)
+        
+        # 銘柄コードを追加
+        signal_df['Ticker'] = ticker
+        
+        # すべてのデータを保存
+        signal_df.to_csv(output_file)
+        logger.info(f"銘柄 {ticker} のテクニカル指標（全データ）を計算・保存しました")
+        
+        # 最新の日付のデータのみを抽出
+        latest_data = signal_df.iloc[-1:].copy()
+        
+        # NaNの確認
+        nan_columns = latest_data.columns[latest_data.isna().any()].tolist()
+        if nan_columns:
+            logger.warning(f"銘柄 {ticker} の最新データにNaN値があります: {nan_columns}")
+            # NaNを0で埋める（ただし、文字列カラムは空文字にする）
+            for col in nan_columns:
+                if col == 'Signal' or col == 'Ichimoku_SanYaku' or col == 'Ichimoku_Cloud_Status':
+                    latest_data[col] = latest_data[col].fillna('')
+                else:
+                    latest_data[col] = latest_data[col].fillna(0)
+        
+        # 最新データのみを別ファイルに保存
+        latest_data.to_csv(latest_output_file)
+        logger.info(f"銘柄 {ticker} の最新テクニカル指標を保存しました")
+        
+        return True, latest_data
+        
+    except Exception as e:
+        logger.error(f"銘柄 {ticker} のテクニカル指標計算中にエラーが発生しました: {str(e)}")
+        return False, None
+
+
+def get_company_name_map(is_test_mode: bool = False) -> Dict[str, str]:
+    """
+    銘柄コードから会社名へのマッピングを取得します
+    
+    Args:
+        is_test_mode: テストモードかどうか
+        
+    Returns:
+        Dict[str, str]: 銘柄コードをキー、会社名を値とする辞書
+    """
+    import config
+    
+    logger = logging.getLogger("StockSignal")
+    company_map = {}
+    
+    try:
+        # CSVファイルのパス
+        if is_test_mode:
+            file_path = os.path.join(config.TEST_DIR, config.COMPANY_LIST_TEST_FILE)
+        else:
+            file_path = os.path.join(config.BASE_DIR, config.COMPANY_LIST_FILE)
+        
+        # CSVの読み込み
+        df = pd.read_csv(file_path, encoding='utf-8')
+        
+        # 必要なカラムの確認
+        if 'Ticker' not in df.columns or '銘柄名' not in df.columns:
+            logger.error(f"企業リストに必要なカラムがありません: {file_path}")
+            return company_map
+        
+        # マッピングの作成
+        for _, row in df.iterrows():
+            company_map[str(row['Ticker'])] = row['銘柄名']
+        
+        logger.info(f"{len(company_map)}社の会社名マッピングを読み込みました")
+        
+    except Exception as e:
+        logger.error(f"会社名マッピングの読み込み中にエラーが発生しました: {str(e)}")
+    
+    return company_map
+
+
+def calculate_signals(tickers: List[str], is_test_mode: bool = False) -> Dict[str, bool]:
+    """
+    複数の銘柄に対してテクニカル指標を計算します
+    
+    Args:
+        tickers: 銘柄コードのリスト
+        is_test_mode: テストモードかどうか
+        
+    Returns:
+        Dict[str, bool]: 銘柄コードをキー、成功したかどうかを値とする辞書
+    """
+    import config
+    
+    logger = logging.getLogger("StockSignal")
+    results = {}
+    all_latest_signals = []
+    
+    # 入力/出力ディレクトリの設定
+    data_dir = config.TEST_RESULT_DIR if is_test_mode else config.RESULT_DIR
+    
+    # 出力先ディレクトリの設定
+    if is_test_mode:
+        output_dir = os.path.join(config.TEST_DIR, "TechnicalSignal")
+    else:
+        output_dir = os.path.join(config.BASE_DIR, "TechnicalSignal")
+    
+    # 出力先ディレクトリの作成
+    os.makedirs(output_dir, exist_ok=True)
+    
+    logger.info(f"テクニカル指標の計算を開始します。対象企業数: {len(tickers)}")
+    
+    # 会社名マッピングの取得
+    company_map = get_company_name_map(is_test_mode)
+    
+    for ticker in tickers:
+        success, latest_data = process_data_for_ticker(ticker, data_dir, output_dir)
+        results[ticker] = success
+        
+        if success and latest_data is not None:
+            # 会社名を追加
+            latest_data['Company'] = company_map.get(ticker, '')
+            
+            # 結合用リストに追加
+            all_latest_signals.append(latest_data)
+    
+    # 結果サマリー
+    success_count = sum(1 for v in results.values() if v)
+    logger.info(f"テクニカル指標の計算が完了しました。成功: {success_count}社, 失敗: {len(results) - success_count}社")
+    
+    # 全企業の最新テクニカル指標を一つのファイルにまとめる
+    if all_latest_signals:
+        try:
+            # DataFrameの結合
+            combined_df = pd.concat(all_latest_signals, axis=0)
+            
+            # Ticker と Company を先頭に移動
+            cols = ['Ticker', 'Company'] + [col for col in combined_df.columns if col not in ['Ticker', 'Company']]
+            combined_df = combined_df[cols]
+            
+            # 保存
+            # ファイル名をクリーンアップして使用
+            output_filename = config.LATEST_SIGNAL_FILE.strip()
+            combined_output_file = os.path.join(output_dir, output_filename)
+            
+            logger.info(f"全企業の最新テクニカル指標を {output_filename} に保存します: {combined_output_file}")
+            combined_df.to_csv(combined_output_file, index=True)
+            logger.info(f"全企業の最新テクニカル指標を {output_filename} にまとめました")
+        except Exception as e:
+            logger.error(f"テクニカル指標の統合ファイル作成中にエラーが発生しました: {str(e)}")
+    
+    return results
