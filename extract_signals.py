@@ -67,9 +67,12 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         logger.info(f"{input_file} を読み込みます")
         df = pd.read_csv(input_file, index_col=0, parse_dates=True)
         
+        # RSI長期の列名を取得（config.RSI_LONG_PERIODの値に基づく）
+        rsi_long_col = f'RSI{config.RSI_LONG_PERIOD}'
+        
         # 必要なカラムの存在確認
         # データフレームに必要なカラムが含まれているか検証
-        required_columns = ['Ticker', 'Company', 'Signal', 'Close']
+        required_columns = ['Ticker', 'Company', 'Signal', 'Close', 'MACD', rsi_long_col]
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             # 必要なカラムが見つからない場合はエラーログを出力して処理を中断
@@ -78,19 +81,37 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         
         # Buyシグナルの抽出処理
         # 1. Signalカラムが'Buy'のレコードのみを抽出
-        # 2. 必要なカラム（銘柄コード、会社名、終値）のみを選択
-        buy_signals = df[df['Signal'] == 'Buy'][['Ticker', 'Company', 'Close']]
-        # Closeカラムの名前を日本語の「終値」に変更（レポートの可読性向上のため）
-        buy_signals = buy_signals.rename(columns={'Close': '終値'})
+        # 2. 必要なカラム（銘柄コード、会社名、終値、MACD、RSI長期）のみを選択
+        buy_signals = df[df['Signal'] == 'Buy'][['Ticker', 'Company', 'Close', 'MACD', rsi_long_col]]
+        
+        # 数値データの小数点以下桁数を調整（MACDは小数点以下1桁に、RSIは小数点以下2桁に丸める）
+        buy_signals['MACD'] = buy_signals['MACD'].round(1)
+        buy_signals[rsi_long_col] = buy_signals[rsi_long_col].round(2)
+        
+        # カラム名を日本語に変更（レポートの可読性向上のため）
+        buy_signals = buy_signals.rename(columns={
+            'Close': '終値',
+            'MACD': 'MACD',
+            rsi_long_col: f'RSI{config.RSI_LONG_PERIOD}'
+        })
         # 買いシグナル出力ファイルのパスを設定
         buy_output_file = os.path.join(output_dir, "signal_result_buy.csv")
         
         # Sellシグナルの抽出処理
         # 1. Signalカラムが'Sell'のレコードのみを抽出
-        # 2. 必要なカラム（銘柄コード、会社名、終値）のみを選択
-        sell_signals = df[df['Signal'] == 'Sell'][['Ticker', 'Company', 'Close']]
-        # Closeカラムの名前を日本語の「終値」に変更（レポートの可読性向上のため）
-        sell_signals = sell_signals.rename(columns={'Close': '終値'})
+        # 2. 必要なカラム（銘柄コード、会社名、終値、MACD、RSI長期）のみを選択
+        sell_signals = df[df['Signal'] == 'Sell'][['Ticker', 'Company', 'Close', 'MACD', rsi_long_col]]
+        
+        # 数値データの小数点以下桁数を調整（小数点以下2桁に丸める）
+        sell_signals['MACD'] = sell_signals['MACD'].round(2)
+        sell_signals[rsi_long_col] = sell_signals[rsi_long_col].round(2)
+        
+        # カラム名を日本語に変更（レポートの可読性向上のため）
+        sell_signals = sell_signals.rename(columns={
+            'Close': '終値',
+            'MACD': 'MACD',
+            rsi_long_col: f'RSI{config.RSI_LONG_PERIOD}'
+        })
         # 売りシグナル出力ファイルのパスを設定
         sell_output_file = os.path.join(output_dir, "signal_result_sell.csv")
         
