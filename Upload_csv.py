@@ -227,6 +227,7 @@ def main():
     files_to_upload_no_sort = [
         'C:\\Users\\mount\\Git\\StockSignal\\Result\\signal_result_buy.csv',  # 買いシグナルCSV
         'C:\\Users\\mount\\Git\\StockSignal\\Result\\signal_result_sell.csv', # 売りシグナルCSV
+        'C:\\Users\\mount\\Git\\StockSignal\\TechnicalSignal\\latest_signal.csv', # テクニカル指標最新値CSV
     ]
     
     # 各ファイルについて処理：アップロード→スプレッドシート変換（ソートなし）
