@@ -735,6 +735,8 @@ def calculate_signals(tickers: List[str], is_test_mode: bool = False) -> Dict[st
     results = {}
     # 全銘柄の最新シグナルデータを格納するリストを初期化
     all_latest_signals = []
+    # 削除対象の一時ファイルパスを格納するリストを初期化
+    temp_files_to_remove = []
     
     # テストモードに応じて入力ディレクトリを設定
     # 株価データが保存されているディレクトリを指定
@@ -773,6 +775,10 @@ def calculate_signals(tickers: List[str], is_test_mode: bool = False) -> Dict[st
             
             # 結合用リストに追加（後で全銘柄のデータを1つのファイルにまとめるため）
             all_latest_signals.append(latest_data)
+            
+            # 削除対象の一時ファイルパスをリストに追加
+            latest_output_file = os.path.join(output_dir, f"{ticker}_latest_signal.csv")
+            temp_files_to_remove.append(latest_output_file)
     
     # 処理結果のサマリーをログに出力
     # 成功・失敗した銘柄数をカウント
@@ -801,6 +807,23 @@ def calculate_signals(tickers: List[str], is_test_mode: bool = False) -> Dict[st
             combined_df.to_csv(combined_output_file, index=True)
             # 保存完了のログを出力
             logger.info(f"全企業の最新テクニカル指標を {output_filename} にまとめました")
+            
+            # 一時ファイルの削除処理を実行
+            files_removed = 0
+            for file_path in temp_files_to_remove:
+                try:
+                    # ファイルの存在確認
+                    if os.path.exists(file_path):
+                        # ファイルを削除
+                        os.remove(file_path)
+                        files_removed += 1
+                except Exception as e:
+                    # ファイル削除時のエラーをログに記録（処理は継続）
+                    logger.warning(f"一時ファイルの削除中にエラーが発生しました: {file_path}, エラー: {str(e)}")
+            
+            # 削除処理結果をログに出力
+            logger.info(f"一時ファイル {files_removed}/{len(temp_files_to_remove)} 件を削除しました")
+            
         except Exception as e:
             # 統合ファイル作成時の例外をキャッチしてログに記録
             logger.error(f"テクニカル指標の統合ファイル作成中にエラーが発生しました: {str(e)}")
