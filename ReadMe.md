@@ -15,41 +15,47 @@
 
 ```
 └── StockSignal/ (ルートディレクトリ)
-    ├── main.py                     # メイン実行スクリプト
-    ├── config.py                   # システム設定ファイル
-    ├── data_loader.py              # データローディングモジュール
-    ├── stock_fetcher.py            # 株価データ取得モジュール
-    ├── calculate_all_indicators.py # テクニカル指標計算モジュール
-    ├── technical_indicators.py     # 売買シグナル生成モジュール
-    ├── check_signal_changing.py    # シグナル変化検出スクリプト
-    ├── extract_signals.py          # 売買シグナル抽出モジュール
-    ├── Upload_csv.py               # Googleドライブアップロードモジュール
-    ├── Upload_WardPress.py         # WordPress投稿モジュール
-    ├── run_stock_signal.bat        # 通常モード実行バッチファイル
-    ├── run_stock_signal_test.bat   # テストモード実行バッチファイル
-    ├── credentials.json            # Google API認証情報
-    ├── token.json                  # Google API認証トークン
-    ├── company_list_20250228.csv   # 分析対象企業リスト
-    ├── ReadMe.md                   # ドキュメント
+    ├── main.py                                  # メイン実行スクリプト
+    ├── config.py                                # システム設定ファイル
+    ├── data_loader.py                           # データローディングモジュール
+    ├── stock_fetcher.py                         # 株価データ取得モジュール
+    ├── calculate_all_indicators.py              # テクニカル指標計算モジュール
+    ├── technical_indicators.py                  # 売買シグナル生成モジュール
+    ├── check_signal_changing.py                 # シグナル変化検出スクリプト
+    ├── extract_signals.py                       # 売買シグナル抽出モジュール
+    ├── Upload_csv.py                            # Googleドライブアップロードモジュール
+    ├── Upload_WardPress.py                      # WordPress投稿モジュール
+    ├── run_stock_signal.bat                     # 通常モード実行バッチファイル
+    ├── run_stock_signal_test.bat                # テストモード実行バッチファイル
+    ├── credentials.json                         # Google API認証情報
+    ├── token.json                               # Google API認証トークン
+    ├── company_list_20250228.csv                # 分析対象企業リスト
+    ├── ReadMe.md                                # ドキュメント
     │
-    ├── Data/                       # 株価データ保存ディレクトリ
-    │   └── [ticker].csv           # 各銘柄の株価データCSV
+    ├── Data/                                    # 株価データ保存ディレクトリ
+    │   └── [ticker].csv                         # 各銘柄の株価データCSV
     │
-    ├── TechnicalSignal/            # テクニカル指標分析結果
-    │   └── latest_signal.csv       # 最新のシグナル状態
+    ├── TechnicalSignal/                         # テクニカル指標分析結果
+    │   ├── [ticker]_signal.csv                  # 各銘柄のシグナル状態CSV
+    │   └── latest_signal.csv                    # 最新のシグナル状態を集約したCSV GoogleDriveにアップ
     │
-    ├── Result/                     # 分析結果出力ディレクトリ
-    │   ├── signal_result_buy.csv   # 買いシグナル銘柄リスト
-    │   └── signal_result_sell.csv  # 売りシグナル銘柄リスト
+    ├── Result/                                  # 分析結果出力ディレクトリ
+    │   ├── signal_result_buy.csv                # 買いシグナル銘柄リスト WardPress・GoogleDriveにアップ
+    │   └── signal_result_sell.csv               # 売りシグナル銘柄リスト WardPress・GoogleDriveにアップ
     │
-    ├── Logs/                       # ログファイル保存ディレクトリ
-    │   └── stock_signal_YYYYMMDD.log # 日付ごとのログファイル
+    ├── Logs/                                    # ログファイル保存ディレクトリ
+    │   └── stock_signal_YYYYMMDD.log            # 日付ごとのログファイル
     │
-    └── Test/                       # テストモード用ディレクトリ
-        ├── Data/                   # テスト用データ保存
-        ├── TechnicalSignal/        # テスト用分析結果
-        ├── Result/                 # テスト用出力結果
-        └── Logs/                   # テスト用ログ
+    ├── Test-BatchFiles/                         # テスト用の単体ファイル実行バッチ
+    │   ├── single-test_run_Upload_csv.bat       # single-test_run_Upload_csv.pyの実行
+    │   └── single-test_run_Upload_WardPress.bat # single-test_run_Upload_WardPress.pyの実行
+    │
+    └── Test/                                    # テストモード用ディレクトリ
+        ├── Data/                                # テスト用データ保存
+        ├── TechnicalSignal/                     # テスト用分析結果
+        ├── Result/                              # テスト用出力結果
+        ├── Logs/                                # テスト用ログ
+        └── company_list_20250228_test.csv       # テスト用対象企業リスト
 ```
 
 ## システム構成
