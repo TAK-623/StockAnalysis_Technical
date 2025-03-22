@@ -204,35 +204,29 @@ def calculate_ichimoku(df: pd.DataFrame) -> pd.DataFrame:
     """
     一目均衡表を計算します（shiftを使わない安全な実装）
     
-    一目均衡表は日本で開発された複合的なテクニカル指標で、トレンドの方向性、
-    強さ、支持/抵抗レベルを1つのチャート上に表示します。
-    この実装では、pandas.shift()ではなく配列のインデックスを直接操作して
-    より安全な計算を行います。
-    
     Args:
-        df: 株価データ（High, Low, Closeカラムが必要）
+        df: 株価データ
         
     Returns:
         pd.DataFrame: 一目均衡表のデータを追加したデータフレーム
-                     （転換線、基準線、先行スパン、遅行スパン、各種判定結果を含む）
     """
     import config
     
     # 元のデータを変更しないようにコピーを作成
     result = df.copy()
     
-    # 一目均衡表のパラメータを取得
-    tenkan_period = config.ICHIMOKU_TENKAN_PERIOD       # 転換線期間（通常：9日）
-    kijun_period = config.ICHIMOKU_KIJUN_PERIOD         # 基準線期間（通常：26日）
-    senkou_span_b_period = config.ICHIMOKU_SENKOU_SPAN_B_PERIOD  # 先行スパンB期間（通常：52日）
-    displacement = config.ICHIMOKU_DISPLACEMENT         # 先行表示期間（通常：26日）
+    # パラメータの取得
+    tenkan_period = config.ICHIMOKU_TENKAN_PERIOD                # 転換線期間
+    kijun_period = config.ICHIMOKU_KIJUN_PERIOD                  # 基準線期間
+    senkou_span_b_period = config.ICHIMOKU_SENKOU_SPAN_B_PERIOD  # 先行スパンB期間
+    displacement = config.ICHIMOKU_DISPLACEMENT                  # 先行表示期間
     
     # 配列を直接操作するために、データをNumPy配列として取得
-    high_values = df['High'].values    # 高値の配列
-    low_values = df['Low'].values      # 安値の配列
-    close_values = df['Close'].values  # 終値の配列
+    high_values = df['High'].values
+    low_values = df['Low'].values
+    close_values = df['Close'].values
     
-    # データの長さを取得
+    # データ長
     data_length = len(high_values)
     
     # ===== 転換線（Tenkan-sen）の計算 =====
@@ -243,7 +237,7 @@ def calculate_ichimoku(df: pd.DataFrame) -> pd.DataFrame:
     for i in range(tenkan_period - 1, data_length):
         period_high = np.max(high_values[i - tenkan_period + 1:i + 1])  # 期間内の最高値
         period_low = np.min(low_values[i - tenkan_period + 1:i + 1])    # 期間内の最安値
-        tenkan_sen[i] = (period_high + period_low) / 2  # 中値を計算
+        tenkan_sen[i] = (period_high + period_low) / 2                  # 中値を計算
     
     result['Ichimoku_Tenkan'] = tenkan_sen
     
@@ -255,7 +249,7 @@ def calculate_ichimoku(df: pd.DataFrame) -> pd.DataFrame:
     for i in range(kijun_period - 1, data_length):
         period_high = np.max(high_values[i - kijun_period + 1:i + 1])  # 期間内の最高値
         period_low = np.min(low_values[i - kijun_period + 1:i + 1])    # 期間内の最安値
-        kijun_sen[i] = (period_high + period_low) / 2  # 中値を計算
+        kijun_sen[i] = (period_high + period_low) / 2                  # 中値を計算
     
     result['Ichimoku_Kijun'] = kijun_sen
     
@@ -367,7 +361,7 @@ def calculate_ichimoku(df: pd.DataFrame) -> pd.DataFrame:
     result['SanYaku_Anten'] = False   # 三役暗転の基本条件
     
     for i in range(data_length):
-        # 必要な値が全て存在する場合のみ判定
+        # インデックス外アクセスの防止とすべての必要な値が存在することを確認
         if (i < data_length and 
             not pd.isna(result.iloc[i]['Ichimoku_Above_Cloud']) and 
             not pd.isna(result.iloc[i]['Ichimoku_Tenkan_Above_Kijun'])):
@@ -375,7 +369,6 @@ def calculate_ichimoku(df: pd.DataFrame) -> pd.DataFrame:
             # 遅行線の値が存在するか確認
             chikou_above_exists = not pd.isna(result.iloc[i].get('Ichimoku_Chikou_Above_Price', np.nan))
             chikou_below_exists = not pd.isna(result.iloc[i].get('Ichimoku_Chikou_Below_Price', np.nan))
-            
             # 三役好転の基本条件：
             # 1. 価格が雲の上
             # 2. 遅行線が価格より上
@@ -398,11 +391,13 @@ def calculate_ichimoku(df: pd.DataFrame) -> pd.DataFrame:
                     result.iloc[i]['Ichimoku_Tenkan_Below_Kijun']
                 )
     
-    # ===== 三役好転・三役暗転の判定（転換線と基準線の交差を検出） =====
-    # 三役好転・三役暗転は時系列的な変化も考慮して判定
+    # 判定日付用の列を追加し初期化
+    result['Ichimoku_JudgeDate'] = ''
+    
+    # 三役好転・三役暗転の判定（トレンド転換）
     result['Ichimoku_SanYaku'] = ''  # 三役好転・三役暗転の結果
     
-    # 前日と今日のデータを比較するため、最低2日分のデータが必要
+    # 前日と今日のデータを使用して判定するため、2行以上のデータが必要
     if data_length >= 2:
         for i in range(1, data_length):
             # 転換線または基準線が計算されていない場合はスキップ
@@ -418,25 +413,33 @@ def calculate_ichimoku(df: pd.DataFrame) -> pd.DataFrame:
             curr_tenkan = tenkan_sen[i]
             curr_kijun = kijun_sen[i]
             
-            # 転換線が基準線を上抜けたか判定
-            # 前日：転換線 <= 基準線、当日：転換線 > 基準線
+            # 転換線が基準線を上抜けたか判定（前日は基準線以下、当日は基準線より上）
             tenkan_uenuke = prev_tenkan <= prev_kijun and curr_tenkan > curr_kijun
             
-            # 転換線が基準線を下抜けたか判定
-            # 前日：転換線 >= 基準線、当日：転換線 < 基準線
+            # 転換線が基準線を下抜けたか判定（前日は基準線以上、当日は基準線より下）
             tenkan_shitanuke = prev_tenkan >= prev_kijun and curr_tenkan < curr_kijun
             
-            # 三役好転の判定：
-            # 1. 転換線が基準線を上抜けた
-            # 2. 三役好転の基本条件を満たしている
-            if tenkan_uenuke and result.iloc[i]['SanYaku_Kouten']:
-                result.iloc[i, result.columns.get_indexer(['Ichimoku_SanYaku'])[0]] = '三役好転'
+            # 日付フォーマット (YYYY-MM-DD) 取得
+            try:
+                date_str = df.index[i].strftime('%Y-%m-%d')
+            except:
+                date_str = ""  # インデックスが日付でない場合は空文字
             
-            # 三役暗転の判定：
-            # 1. 転換線が基準線を下抜けた
-            # 2. 三役暗転の基本条件を満たしている
-            elif tenkan_shitanuke and result.iloc[i]['SanYaku_Anten']:
+            # 三役好転: 基本条件を満たしている場合
+            if result.iloc[i]['SanYaku_Kouten']:
+                result.iloc[i, result.columns.get_indexer(['Ichimoku_SanYaku'])[0]] = '三役好転'
+                
+                # 転換があった場合は日付を記録
+                if tenkan_uenuke:
+                    result.iloc[i, result.columns.get_indexer(['Ichimoku_JudgeDate'])[0]] = date_str
+            
+            # 三役暗転: 基本条件を満たしている場合
+            elif result.iloc[i]['SanYaku_Anten']:
                 result.iloc[i, result.columns.get_indexer(['Ichimoku_SanYaku'])[0]] = '三役暗転'
+                
+                # 転換があった場合は日付を記録
+                if tenkan_shitanuke:
+                    result.iloc[i, result.columns.get_indexer(['Ichimoku_JudgeDate'])[0]] = date_str
     
     return result
 
