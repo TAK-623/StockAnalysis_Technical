@@ -20,13 +20,12 @@ WP_USERNAME = "tak.note7120@gmail.com"  # WordPressの管理者ユーザー名�
 WP_APP_PASSWORD = "GNrk aQ3d 7GWu p1fw dCfM pAGH"  # WordPress アプリケーションパスワード（セキュリティ向上のため通常のパスワードではなくアプリパスワードを使用）
 
 # 今日の日付と昨日の日付を取得（昨日の株価データを投稿するため）
-current_date = datetime.now()
-yesterday_date = (current_date - timedelta(days=1)).strftime("%Y/%m/%d")  # YYYY/MM/DD形式
+current_date = (datetime.now()).strftime("%Y/%m/%d")  # YYYY/MM/DD形式
 
 # 投稿の冒頭部分のテキスト（HTMLタグ含む）
 # 投稿の説明文と銘柄コードの解説を含む
 intro_text = """
-<p>{yesterday_date}終わり時点での情報です。</p>
+<p>{current_date}終わり時点での情報です。</p>
 <p>Pythonを使用して自動でデータ収集&演算を行っています。</p>
 <p>銘柄名に付いているアルファベットで市場を表しています。</p>
 <div class="graybox">
@@ -37,7 +36,7 @@ intro_text = """
 <p></p>
 <p>シグナルはMACDとRSIをもとに算出したものと、MACDとRCIをもとに算出したものの2種類を挙げています。</p>
 <p></p>
-""".format(yesterday_date=yesterday_date)
+""".format(current_date=current_date)
 
 def read_csv_to_html_table(csv_file_path):
     """
@@ -155,7 +154,7 @@ def main():
     html_table_macd_rci_sell, macd_rci_sell_count = read_csv_to_html_table(macd_rci_signal_sell_csv_file_path) # 売りシグナルテーブル
     
     # 投稿のタイトルと内容を作成
-    post_title = "売買シグナル_{yesterday_date}".format(yesterday_date=yesterday_date)  # 投稿タイトル
+    post_title = "売買シグナル_{current_date}".format(current_date=current_date)  # 投稿タイトル
     
     # 投稿本文のHTML構成
     # WordPressテーマ「AFFINGER」用のスライドボックスブロックを使用
