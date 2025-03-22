@@ -19,8 +19,7 @@
     ├── config.py                                # システム設定ファイル
     ├── data_loader.py                           # データローディングモジュール
     ├── stock_fetcher.py                         # 株価データ取得モジュール
-    ├── technical_indicators.py                  # 売買シグナル生成モジュール
-    ├── check_signal_changing.py                 # シグナル変化検出スクリプト
+    ├── technical_indicators.py                  # 各種インジケーター演算＆売買シグナル生成モジュール
     ├── extract_signals.py                       # 売買シグナル抽出モジュール
     ├── Upload_csv.py                            # Googleドライブアップロードモジュール
     ├── Upload_WardPress.py                      # WordPress投稿モジュール
@@ -49,12 +48,17 @@
     │   ├── single-test_run_Upload_csv.bat       # single-test_run_Upload_csv.pyの実行
     │   └── single-test_run_Upload_WardPress.bat # single-test_run_Upload_WardPress.pyの実行
     │
-    └── Test/                                    # テストモード用ディレクトリ
-        ├── Data/                                # テスト用データ保存
-        ├── TechnicalSignal/                     # テスト用分析結果
-        ├── Result/                              # テスト用出力結果
-        ├── Logs/                                # テスト用ログ
-        └── company_list_20250228_test.csv       # テスト用対象企業リスト
+    ├── Test/                                    # テストモード用ディレクトリ
+    │   ├── Data/                                # テスト用データ保存
+    │   ├── TechnicalSignal/                     # テスト用分析結果
+    │   ├── Result/                              # テスト用出力結果
+    │   ├── Logs/                                # テスト用ログ
+    │   └── company_list_20250228_test.csv       # テスト用対象企業リスト
+    │
+    └── Tools/                                   # 関連ツール
+        └── MakeCompanyList/                     # CompanyListの整形ツール
+            ├── make_company_list.bat            # Pythonスクリプト実行用のバッチファイル
+            └── make_company_list.py             # 整形実行スクリプト
 ```
 
 ## システム構成
@@ -123,15 +127,23 @@ run_stock_signal_test.bat
 
 ## 売買シグナル生成ロジック
 
-買いシグナル条件：
+MACD&RSI買いシグナル条件：
 - MACDがMACD_Signalを上回る（上昇モメンタム）
 - 短期RSIが長期RSIを上回る（短期的な強さ）
 - 長期RSIが40以下（まだ買われすぎではない）
 
-売りシグナル条件：
+MACD&RSI売りシグナル条件：
 - MACDがMACD_Signalを下回る（下降モメンタム）
 - 短期RSIが長期RSIを下回る（短期的な弱さ）
 - 長期RSIが60以上（まだ売られすぎではない）
+
+MACD&RCI買いシグナル条件：
+- MACDがMACD_Signalを上回る（上昇モメンタム）
+- 長期RCIが過去5営業日内に-80％を上回る
+
+MACD&RCI売りシグナル条件：
+- MACDがMACD_Signalを下回る（下降モメンタム）
+- 長期RCIが過去5営業日内に80％を下回る
 
 ## Google API認証設定
 
