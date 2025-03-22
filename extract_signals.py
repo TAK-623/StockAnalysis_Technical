@@ -84,8 +84,8 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         # 2. 必要なカラム（銘柄コード、会社名、終値、MACD、RSI長期）のみを選択
         buy_signals = df[df['Signal'] == 'Buy'][['Ticker', 'Company', 'Close', 'MACD', rsi_long_col]]
         
-        # 数値データの小数点以下桁数を調整（MACDは小数点以下1桁に、RSIは小数点以下2桁に丸める）
-        buy_signals['MACD'] = buy_signals['MACD'].round(1)
+        # 数値データの小数点以下桁数を調整（小数点以下2桁に丸める）
+        buy_signals['MACD'] = buy_signals['MACD'].round(2)
         buy_signals[rsi_long_col] = buy_signals[rsi_long_col].round(2)
         
         # カラム名を日本語に変更（レポートの可読性向上のため）
@@ -102,9 +102,14 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         # 2. 必要なカラム（銘柄コード、会社名、終値、MACD、RSI長期）のみを選択
         sell_signals = df[df['Signal'] == 'Sell'][['Ticker', 'Company', 'Close', 'MACD', rsi_long_col]]
         
-        # 数値データの小数点以下桁数を調整（小数点以下2桁に丸める）
+        # 数値データの小数点以下桁数を調整
         sell_signals['MACD'] = sell_signals['MACD'].round(2)
         sell_signals[rsi_long_col] = sell_signals[rsi_long_col].round(2)
+        
+        # 終値の表示形式を調整（小数点以下が0の場合は整数表示、それ以外は小数点以下1桁）
+        sell_signals['Close'] = sell_signals['Close'].apply(
+            lambda x: int(x) if x == int(x) else round(x, 1)
+        )
         
         # カラム名を日本語に変更（レポートの可読性向上のため）
         sell_signals = sell_signals.rename(columns={
