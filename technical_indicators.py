@@ -42,6 +42,112 @@ def calculate_moving_averages(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
+def calculate_trading_signals_MA_Deviation(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    移動平均線乖離率に基づく取引シグナル(Buy/Sell)を計算します
+    
+    条件：
+    Buy シグナル:
+    - 短期移動平均線の乖離率が一定値以下（売られすぎ）
+    - 短期移動平均線の前日比率がプラス（上昇に転じている）
+    
+    Sell シグナル:
+    - 短期移動平均線の乖離率が一定値以上（買われすぎ）
+    - 短期移動平均線の前日比率がマイナス（下落に転じている）
+    
+    Args:
+        df: テクニカル指標が計算済みのデータフレーム
+        
+    Returns:
+        pd.DataFrame: MA-Deviationシグナルを追加したデータフレーム
+    """
+    import config
+    
+    # 元のデータフレームを変更しないようにコピーを作成
+    result = df.copy()
+    
+    # 短期移動平均線を選択（例：MA5など）
+    short_period = min(config.MA_PERIODS)
+    short_ma_column = f'MA{short_period}'
+    short_ma_deviation_column = f'{short_ma_column}_Deviation'
+    short_ma_change_column = f'{short_ma_column}_Change'
+    
+    # 必要な列が存在するか確認
+    required_columns = [short_ma_deviation_column, short_ma_change_column]
+    missing_columns = [col for col in required_columns if col not in result.columns]
+    
+    # 必要なカラムが一つでも欠けている場合は処理を中断
+    if missing_columns:
+        logger = logging.getLogger("StockSignal")
+        logger.warning(f"MA-Deviationシグナル計算に必要なカラムがありません: {missing_columns}")
+        result['MA-Deviation'] = ''
+        return result
+    
+    # シグナル列を初期化
+    result['MA-Deviation'] = ''
+    
+    # 乖離率の閾値（例: -3%以下で買い、3%以上で売り）※パラメータは要検討
+    buy_threshold = -3.0
+    sell_threshold = 3.0
+    
+    # Buyシグナルの条件（押し目の判定）
+    buy_condition = (
+        (result[short_ma_deviation_column] <= buy_threshold) & 
+        (result[short_ma_change_column] > 0)
+    )
+    
+    # Sellシグナルの条件（押し目の判定）
+    sell_condition = (
+        (result[short_ma_deviation_column] >= sell_threshold) & 
+        (result[short_ma_change_column] < 0)
+    )
+    
+    # 条件に合致する行にシグナル値を設定　※これをどう使用するかは要検討
+    result.loc[buy_condition, 'MA-Deviation'] = 'Buy'
+    result.loc[sell_condition, 'MA-Deviation'] = 'Sell'
+    
+    return result
+
+
+def calculate_ma_deviation_and_change(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    移動平均線乖離率と移動平均線の前日比率を計算します
+    
+    乖離率は「(現在値-移動平均線)/移動平均線×100」で計算され、
+    前日比率は「今日の移動平均線/前日の移動平均線×100-100」で計算されます。
+    
+    Args:
+        df: 株価データと移動平均線が計算済みのデータフレーム
+        
+    Returns:
+        pd.DataFrame: 乖離率と前日比率を追加したデータフレーム
+    """
+    import config
+    
+    # 元のデータを変更しないようにコピーを作成
+    result = df.copy()
+    
+    # 終値の配列を取得
+    close = df['Close'].values
+    
+    # 設定された各期間の移動平均線について乖離率と前日比率を計算
+    for period in config.MA_PERIODS:
+        ma_column = f'MA{period}'
+        
+        # 移動平均線が計算されていない場合はスキップ
+        if ma_column not in result.columns:
+            continue
+        
+        # 乖離率の計算: (現在値-移動平均線)/移動平均線×100
+        result[f'{ma_column}_Deviation'] = ((close - result[ma_column]) / result[ma_column]) * 100
+        
+        # 前日比率の計算: 今日の移動平均線/前日の移動平均線×100-100
+        # shift(1)で前日の値を取得し、その差からパーセント変化を計算
+        result[f'{ma_column}_Change'] = (result[ma_column] / result[ma_column].shift(1) * 100) - 100
+    
+    return result
+
+
 def calculate_macd(df: pd.DataFrame) -> pd.DataFrame:
     """
     MACDを計算します
@@ -617,32 +723,31 @@ def calculate_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     result = df.copy()
     
     # 移動平均線の計算
-    # 短期・中期・長期の単純移動平均線を計算（例: MA5, MA25, MA75）
     result = calculate_moving_averages(result)
     
+    # 移動平均線乖離率と前日比率の計算
+    result = calculate_ma_deviation_and_change(result)
+    
     # MACDの計算
-    # 短期EMAと長期EMAの差、およびそのシグナル線とヒストグラムを計算
     result = calculate_macd(result)
     
     # RSIの計算
-    # 短期・長期の相対力指数を計算（買われすぎ/売られすぎの判断に使用）
     result = calculate_rsi(result)
     
     # RCIの計算
-    # 短期・長期のランク相関指数を計算（トレンド転換の検出に有効）
     result = calculate_rci(result)
     
     # 一目均衡表の計算
-    # 転換線、基準線、先行スパン、遅行スパンなどを計算
     result = calculate_ichimoku(result)
     
     # 取引シグナルの計算 (MACD-RSI)
-    # MACDとRSIを組み合わせたシグナルを生成
     result = calculate_trading_signals_MACD_RSI(result)
     
     # 新しい取引シグナルの計算 (MACD-RCI)
-    # MACDとRCIを組み合わせたシグナルを生成
     result = calculate_trading_signals_MACD_RCI(result)
+    
+    # 移動平均線乖離率に基づく取引シグナルの計算（新規追加）
+    result = calculate_trading_signals_MA_Deviation(result)
     
     # すべての指標が計算された結果を返す
     return result
