@@ -444,9 +444,9 @@ def calculate_ichimoku(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-def calculate_trading_signals(df: pd.DataFrame) -> pd.DataFrame:
+def calculate_trading_signals_MACD_RSI(df: pd.DataFrame) -> pd.DataFrame:
     """
-    取引シグナル(Buy/Sell)を計算します
+    MACDとRSIによる取引シグナル(Buy/Sell)を計算します
     
     条件：
     Buy シグナル:
@@ -463,7 +463,7 @@ def calculate_trading_signals(df: pd.DataFrame) -> pd.DataFrame:
         df: テクニカル指標が計算済みのデータフレーム
         
     Returns:
-        pd.DataFrame: シグナルを追加したデータフレーム
+        pd.DataFrame: MACD-RSIシグナルを追加したデータフレーム
     """
     import config  # 設定値を取得するために設定モジュールをインポート
     
@@ -482,11 +482,11 @@ def calculate_trading_signals(df: pd.DataFrame) -> pd.DataFrame:
         logger = logging.getLogger("StockSignal")
         logger.warning(f"シグナル計算に必要なカラムがありません: {missing_columns}")
         # シグナル列を空文字で追加して返す（エラー回避のため）
-        result['Signal'] = ''
+        result['MACD-RSI'] = ''
         return result
     
     # 必要な列がすべて存在する場合は、シグナル列を初期化（空文字列）
-    result['Signal'] = ''
+    result['MACD-RSI'] = ''
     
     # RSI短期・長期の列名を取得（設定に応じた期間の列名を動的に生成）
     rsi_short_col = f'RSI{config.RSI_SHORT_PERIOD}'  # 例: RSI9
@@ -514,8 +514,91 @@ def calculate_trading_signals(df: pd.DataFrame) -> pd.DataFrame:
     
     # 条件に合致する行にシグナル値を設定
     # pandas.DataFrameのloc[]を使用して、条件を満たす行のみを更新
-    result.loc[buy_condition, 'Signal'] = 'Buy'  # 買いシグナル設定
-    result.loc[sell_condition, 'Signal'] = 'Sell'  # 売りシグナル設定
+    result.loc[buy_condition, 'MACD-RSI'] = 'Buy'    # 買いシグナル設定
+    result.loc[sell_condition, 'MACD-RSI'] = 'Sell'  # 売りシグナル設定
+    
+    return result
+
+
+def calculate_trading_signals_MACD_RCI(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    取引シグナル(Buy/Sell)を計算します（MACDとRCIを使用）
+    
+    条件：
+    Buy シグナル:
+    - 直近5営業日内にRCIが-80を上回る
+    - MACDがMACD_Signalを上回る
+    
+    Sell シグナル:
+    - 直近5営業日内にRCIが80を下回る
+    - MACDがMACD_Signalを下回る
+    
+    Args:
+        df: テクニカル指標が計算済みのデータフレーム
+        
+    Returns:
+        pd.DataFrame: MACD-RCIシグナルを追加したデータフレーム
+    """
+    import config  # 設定値を取得するために設定モジュールをインポート
+    
+    # 元のデータフレームを変更しないようにコピーを作成
+    result = df.copy()
+    
+    # 必要な列が存在するか確認
+    # シグナル計算には特定のテクニカル指標が必要なため、それらのカラムの存在を検証
+    rci_column = f'RCI{config.RCI_LONG_PERIOD}'  # RCI長期を使用
+    required_columns = ['MACD', 'MACD_Signal', rci_column]
+    # リスト内包表記を使用して、存在しないカラムをリストアップ
+    missing_columns = [col for col in required_columns if col not in result.columns]
+    
+    # 必要なカラムが一つでも欠けている場合は処理を中断
+    if missing_columns:
+        # ロガーを取得してエラーメッセージを記録
+        logger = logging.getLogger("StockSignal")
+        logger.warning(f"MACD-RCIシグナル計算に必要なカラムがありません: {missing_columns}")
+        # シグナル列を空文字で追加して返す（エラー回避のため）
+        result['MACD-RCI'] = ''
+        return result
+    
+    # 必要な列がすべて存在する場合は、シグナル列を初期化（空文字列）
+    result['MACD-RCI'] = ''
+    
+    # データが5行以上あるか確認（直近5営業日の判定に必要）
+    if len(result) < 5:
+        logger.warning(f"MACD-RCIシグナル計算には少なくとも5日分のデータが必要です")
+        return result
+    
+    # 各行に対して直近5営業日のRCIのチェックを行う
+    for i in range(4, len(result)):
+        # 現在の日付と直近5営業日のデータを取得
+        current_idx = result.index[i]
+        past_5days = result.iloc[i-4:i+1]  # 現在の日付を含む5営業日分のデータ
+        
+        # MACDシグナルとの関係を確認
+        macd_above_signal = result.iloc[i]['MACD'] > result.iloc[i]['MACD_Signal']
+        macd_below_signal = result.iloc[i]['MACD'] < result.iloc[i]['MACD_Signal']
+        
+        # 直近5営業日内でRCIが-80を上回ったかチェック（Buyシグナル用）
+        rci_crosses_above_minus_80 = False
+        for j in range(len(past_5days) - 1):
+            if past_5days.iloc[j][rci_column] <= -80 and past_5days.iloc[j+1][rci_column] > -80:
+                rci_crosses_above_minus_80 = True
+                break
+        
+        # 直近5営業日内でRCIが80を下回ったかチェック（Sellシグナル用）
+        rci_crosses_below_80 = False
+        for j in range(len(past_5days) - 1):
+            if past_5days.iloc[j][rci_column] >= 80 and past_5days.iloc[j+1][rci_column] < 80:
+                rci_crosses_below_80 = True
+                break
+        
+        # Buyシグナルの条件を確認
+        if rci_crosses_above_minus_80 and macd_above_signal:
+            result.loc[current_idx, 'MACD-RCI'] = 'Buy'
+        
+        # Sellシグナルの条件を確認
+        elif rci_crosses_below_80 and macd_below_signal:
+            result.loc[current_idx, 'MACD-RCI'] = 'Sell'
     
     return result
 
@@ -553,9 +636,13 @@ def calculate_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # 転換線、基準線、先行スパン、遅行スパンなどを計算
     result = calculate_ichimoku(result)
     
-    # 取引シグナルの計算
-    # 上記の指標を組み合わせて、Buy/Sellシグナルを生成
-    result = calculate_trading_signals(result)
+    # 取引シグナルの計算 (MACD-RSI)
+    # MACDとRSIを組み合わせたシグナルを生成
+    result = calculate_trading_signals_MACD_RSI(result)
+    
+    # 新しい取引シグナルの計算 (MACD-RCI)
+    # MACDとRCIを組み合わせたシグナルを生成
+    result = calculate_trading_signals_MACD_RCI(result)
     
     # すべての指標が計算された結果を返す
     return result

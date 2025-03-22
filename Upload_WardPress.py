@@ -35,21 +35,7 @@ intro_text = """
 <p>G: グロース市場の銘柄</p>
 </div>
 <p></p>
-<p>シグナルは下記の条件で導出しています。</p>
-[st-mybox title="買いシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
-<ol>
-<li>MACDがMACDシグナルを上回っている</li>
-<li>RSI短期がRSI長期を上回っている</li>
-<li>RSI長期が40以下</li>
-</ol>
-[/st-mybox]
-[st-mybox title="売りシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
-<ol>
-<li>MACDがMACDシグナルを下回っている</li>
-<li>RSI短期がRSI長期を下回っている</li>
-<li>RSI長期が60以上</li>
-</ol>
-[/st-mybox]
+<p>シグナルはMACDとRSIをもとに算出したものと、MACDとRCIをもとに算出したものの2種類を挙げています。</p>
 <p></p>
 """.format(yesterday_date=yesterday_date)
 
@@ -132,19 +118,23 @@ def main():
     メイン処理：CSVファイルの読み込み、HTML変換、WordPress投稿を実行
     """
     # 読み込むCSVファイルのパス
-    signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockSignal\\Result\\signal_result_buy.csv"   # 買いシグナルCSV
-    signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockSignal\\Result\\signal_result_sell.csv" # 売りシグナルCSV
+    macd_rsi_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rsi_signal_result_buy.csv"   # 買いシグナルCSV
+    macd_rsi_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rsi_signal_result_sell.csv" # 売りシグナルCSV
+    macd_rci_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rci_signal_result_buy.csv"   # 買いシグナルCSV
+    macd_rci_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rci_signal_result_sell.csv" # 売りシグナルCSV
     
     # 各CSVファイルを読み込んで、銘柄コード(Ticker)列で昇順ソートして再保存
     # 表示時に銘柄コードでソートされた状態にするため
-    for file_path in [signal_buy_csv_file_path, signal_sell_csv_file_path]:
+    for file_path in [macd_rsi_signal_buy_csv_file_path, macd_rsi_signal_sell_csv_file_path, macd_rci_signal_buy_csv_file_path, macd_rci_signal_sell_csv_file_path]:
         df = pd.read_csv(file_path, encoding='utf-8')    # CSVファイルを読み込み
         df_sorted = df.sort_values(by='Ticker')          # Ticker列で昇順ソート
         df_sorted.to_csv(file_path, index=False, encoding='utf-8')  # ソート結果を上書き保存
     
     # CSVデータをHTML表に変換
-    html_table_buy = read_csv_to_html_table(signal_buy_csv_file_path)   # 買いシグナルテーブル
-    html_table_sell = read_csv_to_html_table(signal_sell_csv_file_path) # 売りシグナルテーブル
+    html_table_macd_rsi_buy = read_csv_to_html_table(macd_rsi_signal_buy_csv_file_path)   # 買いシグナルテーブル
+    html_table_macd_rsi_sell = read_csv_to_html_table(macd_rsi_signal_sell_csv_file_path) # 売りシグナルテーブル
+    html_table_macd_rci_buy = read_csv_to_html_table(macd_rci_signal_buy_csv_file_path)   # 買いシグナルテーブル
+    html_table_macd_rci_sell = read_csv_to_html_table(macd_rci_signal_sell_csv_file_path) # 売りシグナルテーブル
     
     # 投稿のタイトルと内容を作成
     post_title = "売買シグナル_{yesterday_date}".format(yesterday_date=yesterday_date)  # 投稿タイトル
@@ -154,8 +144,22 @@ def main():
     # 初期状態では折りたたまれており、クリックで展開される
     post_content = f"""
         {intro_text}
-        <h2>売買シグナル</h2>
-        <p>前述の条件でフィルタリングした銘柄を抽出しています。</p>
+        <h2>MACD & RSIによる売買シグナル</h2>
+        <p>MACDとRSIによるシグナルは下記の条件で導出しています。</p>
+        [st-mybox title="買いシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
+        <ol>
+        <li>MACDがMACDシグナルを上回っている</li>
+        <li>RSI短期がRSI長期を上回っている</li>
+        <li>RSI長期が40以下</li>
+        </ol>
+        [/st-mybox]
+        [st-mybox title="売りシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
+        <ol>
+        <li>MACDがMACDシグナルを下回っている</li>
+        <li>RSI短期がRSI長期を下回っている</li>
+        <li>RSI長期が60以上</li>
+        </ol>
+        [/st-mybox]
         <h3>買いシグナル銘柄</h3>
         <p><!-- wp:st-blocks/st-slidebox --></p>
         <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
@@ -163,7 +167,7 @@ def main():
         <div class="st-slidebox" data-st-slidebox-content="">
         <div class="scroll-box">
         買いシグナルテーブル
-        {html_table_buy}
+        {html_table_macd_rsi_buy}
         </div>
         </div>
         </div>
@@ -176,12 +180,52 @@ def main():
         <div class="st-slidebox" data-st-slidebox-content="">
         <div class="scroll-box">
         売りシグナルテーブル
-        {html_table_sell}
+        {html_table_macd_rsi_sell}
+        </div>
+        </div>
+        </div>
+        <p><!-- /wp:st-blocks/st-slidebox --></p>
+
+        <h2>MACD & RCIによる売買シグナル</h2>
+        <p>MACDとRSIによるシグナルは下記の条件で導出しています。</p>
+        [st-mybox title="買いシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
+        <ol>
+        <li>MACDがMACDシグナルを上回っている</li>
+        <li>RCI長期が過去5営業日内に-80%を上回る</li>
+        </ol>
+        [/st-mybox]
+        [st-mybox title="売りシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
+        <ol>
+        <li>MACDがMACDシグナルを下回っている</li>
+        <li>RCI長期が過去5営業日内に80%を下回る</li>
+        </ol>
+        [/st-mybox]
+        <p></p>
+        <h3>買いシグナル銘柄</h3>
+        <p><!-- wp:st-blocks/st-slidebox --></p>
+        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
+        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
+        <div class="st-slidebox" data-st-slidebox-content="">
+        <div class="scroll-box">
+        買いシグナルテーブル
+        {html_table_macd_rci_buy}
         </div>
         </div>
         </div>
         <p><!-- /wp:st-blocks/st-slidebox --></p>
         
+        <h3>売りシグナル銘柄</h3>
+        <p><!-- wp:st-blocks/st-slidebox --></p>
+        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
+        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
+        <div class="st-slidebox" data-st-slidebox-content="">
+        <div class="scroll-box">
+        売りシグナルテーブル
+        {html_table_macd_rci_sell}
+        </div>
+        </div>
+        </div>
+        <p><!-- /wp:st-blocks/st-slidebox --></p>
         """
     
     # WordPressに投稿を送信

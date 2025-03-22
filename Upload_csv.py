@@ -225,8 +225,10 @@ def main():
     # アップロードするが並べ替えは行わないファイルリスト
     # シグナル結果（買い・売り）のCSVファイル
     files_to_upload_no_sort = [
-        'C:\\Users\\mount\\Git\\StockSignal\\Result\\signal_result_buy.csv',  # 買いシグナルCSV
-        'C:\\Users\\mount\\Git\\StockSignal\\Result\\signal_result_sell.csv', # 売りシグナルCSV
+        'C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rsi_signal_result_buy.csv',  # 買いシグナルCSV
+        'C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rsi_signal_result_sell.csv', # 売りシグナルCSV
+        'C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rci_signal_result_buy.csv',  # 買いシグナルCSV
+        'C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rci_signal_result_sell.csv', # 売りシグナルCSV
         'C:\\Users\\mount\\Git\\StockSignal\\TechnicalSignal\\latest_signal.csv', # テクニカル指標最新値CSV
     ]
     
