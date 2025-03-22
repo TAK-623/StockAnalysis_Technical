@@ -39,13 +39,12 @@ intro_text = """
 <p></p>
 """.format(yesterday_date=yesterday_date)
 
-def read_csv_to_html_table(csv_file_path, decimal_places=2):
+def read_csv_to_html_table(csv_file_path):
     """
     CSVファイルを読み込み、スタイリングされたHTML表に変換します
     
     Args:
         csv_file_path (str): 読み込むCSVファイルのパス
-        decimal_places (int): 小数点以下の表示桁数（デフォルト: 2桁）
         
     Returns:
         str: スタイル適用済みのHTML表（スクロール可能なコンテナ内）
@@ -53,10 +52,28 @@ def read_csv_to_html_table(csv_file_path, decimal_places=2):
     # CSVファイルをpandasデータフレームとして読み込み
     df = pd.read_csv(csv_file_path)
 
-    # 小数点以下の桁数を統一（float型の列のみ適用）
-    # 例: 終値などの小数点以下を指定桁数に揃える
-    for col in df.select_dtypes(include=['float']):
-        df[col] = df[col].round(decimal_places)
+    # 数値フォーマットをカスタマイズする関数
+    def format_number(x):
+        if pd.isna(x):  # NaN値の場合は処理しない
+            return x
+        
+        try:
+            # 数値に変換可能な場合
+            num_value = float(x)
+            # 整数かどうかをチェック
+            if num_value.is_integer():
+                return int(num_value)  # 整数の場合は整数として表示
+            else:
+                return f"{num_value:.1f}"  # 小数点以下がある場合は1桁まで表示
+        except (ValueError, TypeError):
+            # 数値に変換できない場合はそのまま返す
+            return x
+
+    # 各列のデータタイプを確認し、数値列に対してフォーマット適用
+    for col in df.columns:
+        # 数値列（intまたはfloat）のみを処理
+        if df[col].dtype in ['int64', 'float64']:
+            df[col] = df[col].apply(format_number)
 
     # DataFrame を HTML テーブルに変換
     # index=False: インデックスは表示しない
