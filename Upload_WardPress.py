@@ -47,7 +47,7 @@ def read_csv_to_html_table(csv_file_path):
         csv_file_path (str): 読み込むCSVファイルのパス
         
     Returns:
-        str: スタイル適用済みのHTML表（スクロール可能なコンテナ内）
+        tuple: (スタイル適用済みのHTML表（スクロール可能なコンテナ内）, 銘柄数)
     """
     # CSVファイルをpandasデータフレームとして読み込み
     df = pd.read_csv(csv_file_path)
@@ -93,7 +93,8 @@ def read_csv_to_html_table(csv_file_path):
         {df_html}
     </div>
     """
-    return styled_table
+    # テーブルの内容とCSV内の銘柄数（行数）を返す
+    return styled_table, len(df)
 
 def post_to_wordpress(title, post_content):
     """
@@ -147,11 +148,11 @@ def main():
         df_sorted = df.sort_values(by='Ticker')          # Ticker列で昇順ソート
         df_sorted.to_csv(file_path, index=False, encoding='utf-8')  # ソート結果を上書き保存
     
-    # CSVデータをHTML表に変換
-    html_table_macd_rsi_buy = read_csv_to_html_table(macd_rsi_signal_buy_csv_file_path)   # 買いシグナルテーブル
-    html_table_macd_rsi_sell = read_csv_to_html_table(macd_rsi_signal_sell_csv_file_path) # 売りシグナルテーブル
-    html_table_macd_rci_buy = read_csv_to_html_table(macd_rci_signal_buy_csv_file_path)   # 買いシグナルテーブル
-    html_table_macd_rci_sell = read_csv_to_html_table(macd_rci_signal_sell_csv_file_path) # 売りシグナルテーブル
+    # CSVデータをHTML表に変換（各テーブルの銘柄数も取得）
+    html_table_macd_rsi_buy, macd_rsi_buy_count = read_csv_to_html_table(macd_rsi_signal_buy_csv_file_path)   # 買いシグナルテーブル
+    html_table_macd_rsi_sell, macd_rsi_sell_count = read_csv_to_html_table(macd_rsi_signal_sell_csv_file_path) # 売りシグナルテーブル
+    html_table_macd_rci_buy, macd_rci_buy_count = read_csv_to_html_table(macd_rci_signal_buy_csv_file_path)   # 買いシグナルテーブル
+    html_table_macd_rci_sell, macd_rci_sell_count = read_csv_to_html_table(macd_rci_signal_sell_csv_file_path) # 売りシグナルテーブル
     
     # 投稿のタイトルと内容を作成
     post_title = "売買シグナル_{yesterday_date}".format(yesterday_date=yesterday_date)  # 投稿タイトル
@@ -177,7 +178,7 @@ def main():
         <li>RSI長期が60以上</li>
         </ol>
         [/st-mybox]
-        <h3>買いシグナル銘柄</h3>
+        <h3>買いシグナル銘柄（{macd_rsi_buy_count}銘柄）</h3>
         <p><!-- wp:st-blocks/st-slidebox --></p>
         <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
         <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
@@ -190,7 +191,7 @@ def main():
         </div>
         <p><!-- /wp:st-blocks/st-slidebox --></p>
         
-        <h3>売りシグナル銘柄</h3>
+        <h3>売りシグナル銘柄（{macd_rsi_sell_count}銘柄）</h3>
         <p><!-- wp:st-blocks/st-slidebox --></p>
         <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
         <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
@@ -204,7 +205,7 @@ def main():
         <p><!-- /wp:st-blocks/st-slidebox --></p>
 
         <h2>MACD & RCIによる売買シグナル</h2>
-        <p>MACDとRSIによるシグナルは下記の条件で導出しています。</p>
+        <p>MACDとRCIによるシグナルは下記の条件で導出しています。</p>
         [st-mybox title="買いシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
         <ol>
         <li>MACDがMACDシグナルを上回っている</li>
@@ -218,7 +219,7 @@ def main():
         </ol>
         [/st-mybox]
         <p></p>
-        <h3>買いシグナル銘柄</h3>
+        <h3>買いシグナル銘柄（{macd_rci_buy_count}銘柄）</h3>
         <p><!-- wp:st-blocks/st-slidebox --></p>
         <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
         <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
@@ -231,7 +232,7 @@ def main():
         </div>
         <p><!-- /wp:st-blocks/st-slidebox --></p>
         
-        <h3>売りシグナル銘柄</h3>
+        <h3>売りシグナル銘柄（{macd_rci_sell_count}銘柄）</h3>
         <p><!-- wp:st-blocks/st-slidebox --></p>
         <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
         <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
