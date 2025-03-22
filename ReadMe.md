@@ -19,7 +19,6 @@
     ├── config.py                                # システム設定ファイル
     ├── data_loader.py                           # データローディングモジュール
     ├── stock_fetcher.py                         # 株価データ取得モジュール
-    ├── calculate_all_indicators.py              # テクニカル指標計算モジュール
     ├── technical_indicators.py                  # 売買シグナル生成モジュール
     ├── check_signal_changing.py                 # シグナル変化検出スクリプト
     ├── extract_signals.py                       # 売買シグナル抽出モジュール
@@ -69,9 +68,7 @@
 ### データ取得・分析モジュール
 
 - `stock_fetcher.py` - Yahoo Finance APIを使用して株価データを取得
-- `calculate_all_indicators.py` - テクニカル指標の計算処理
-- `technical_indicators.py` - 売買シグナルの生成と分析
-- `check_signal_changing.py` - シグナル変化の検出処理
+- `technical_indicators.py` - テクニカル指標の計算処理、売買シグナルの生成と分析、シグナル変化の検出処理
 
 ### データ出力モジュール
 
