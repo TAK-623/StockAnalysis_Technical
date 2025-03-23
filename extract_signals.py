@@ -71,6 +71,8 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         
         # RSI長期の列名を取得（config.RSI_LONG_PERIODの値に基づく）
         rsi_long_col = f'RSI{config.RSI_LONG_PERIOD}'
+        # RCI短期の列名を取得（config.RCI_SHORT_PERIODの値に基づく）
+        rci_short_col = f'RCI{config.RCI_SHORT_PERIOD}'
         # RCI長期の列名を取得（config.RCI_LONG_PERIODの値に基づく）
         rci_long_col = f'RCI{config.RCI_LONG_PERIOD}'
         
@@ -139,16 +141,18 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         # Buyシグナルの抽出処理
         # 1. MACD-RCIカラムが'Buy'のレコードのみを抽出
         # 2. 必要なカラム（銘柄コード、会社名、終値、MACD、RCI長期）のみを選択
-        macd_rci_buy_signals = df[df['MACD-RCI'] == 'Buy'][['Ticker', 'Company', 'Close', 'MACD', rci_long_col]]
+        macd_rci_buy_signals = df[df['MACD-RCI'] == 'Buy'][['Ticker', 'Company', 'Close', 'MACD', rci_short_col, rci_long_col]]
         
         # 数値データの小数点以下桁数を調整（小数点以下2桁に丸める）
         macd_rci_buy_signals['MACD'] = macd_rci_buy_signals['MACD'].round(2)
+        macd_rci_buy_signals[rci_short_col] = macd_rci_buy_signals[rci_short_col].round(2)
         macd_rci_buy_signals[rci_long_col] = macd_rci_buy_signals[rci_long_col].round(2)
         
         # カラム名を日本語に変更（レポートの可読性向上のため）
         macd_rci_buy_signals = macd_rci_buy_signals.rename(columns={
             'Close': '終値',
             'MACD': 'MACD',
+            rci_short_col: f'RCI{config.RCI_SHORT_PERIOD}',
             rci_long_col: f'RCI{config.RCI_LONG_PERIOD}'
         })
         # 買いシグナル出力ファイルのパスを設定
@@ -157,10 +161,11 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         # Sellシグナルの抽出処理
         # 1. MACD-RCIカラムが'Sell'のレコードのみを抽出
         # 2. 必要なカラム（銘柄コード、会社名、終値、MACD、RCI長期）のみを選択
-        macd_rci_sell_signals = df[df['MACD-RCI'] == 'Sell'][['Ticker', 'Company', 'Close', 'MACD', rci_long_col]]
+        macd_rci_sell_signals = df[df['MACD-RCI'] == 'Sell'][['Ticker', 'Company', 'Close', 'MACD', rci_short_col, rci_long_col]]
         
         # 数値データの小数点以下桁数を調整
         macd_rci_sell_signals['MACD'] = macd_rci_sell_signals['MACD'].round(2)
+        macd_rci_sell_signals[rci_short_col] = macd_rci_sell_signals[rci_short_col].round(2)
         macd_rci_sell_signals[rci_long_col] = macd_rci_sell_signals[rci_long_col].round(2)
         
         # 終値の表示形式を調整（小数点以下が0の場合は整数表示、それ以外は小数点以下1桁）
@@ -172,6 +177,7 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         macd_rci_sell_signals = macd_rci_sell_signals.rename(columns={
             'Close': '終値',
             'MACD': 'MACD',
+            rci_short_col: f'RCI{config.RCI_SHORT_PERIOD}',
             rci_long_col: f'RCI{config.RCI_LONG_PERIOD}'
         })
         # 売りシグナル出力ファイルのパスを設定
@@ -192,12 +198,13 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         macd_rsi_rci_buy_signals = df[(df['MACD-RSI'] == 'Buy') & (df['MACD-RCI'] == 'Buy')]
         
         # 必要なカラムのみを選択（両方のシグナルに使用されている指標を含める）
-        both_buy_columns = ['Ticker', 'Company', 'Close', 'MACD', rsi_long_col, rci_long_col]
+        both_buy_columns = ['Ticker', 'Company', 'Close', 'MACD', rsi_long_col, rci_short_col, rci_long_col]
         macd_rsi_rci_buy_signals = macd_rsi_rci_buy_signals[both_buy_columns]
         
         # 数値データの小数点以下桁数を調整
         macd_rsi_rci_buy_signals['MACD'] = macd_rsi_rci_buy_signals['MACD'].round(2)
         macd_rsi_rci_buy_signals[rsi_long_col] = macd_rsi_rci_buy_signals[rsi_long_col].round(2)
+        macd_rsi_rci_buy_signals[rci_short_col] = macd_rsi_rci_buy_signals[rci_short_col].round(2)
         macd_rsi_rci_buy_signals[rci_long_col] = macd_rsi_rci_buy_signals[rci_long_col].round(2)
         
         # カラム名を日本語に変更
@@ -205,6 +212,7 @@ def extract_signals(is_test_mode: bool = False) -> bool:
             'Close': '終値',
             'MACD': 'MACD',
             rsi_long_col: f'RSI{config.RSI_LONG_PERIOD}',
+            rci_short_col: f'RCI{config.RCI_SHORT_PERIOD}',
             rci_long_col: f'RCI{config.RCI_LONG_PERIOD}'
         })
         
@@ -215,12 +223,13 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         macd_rsi_rci_sell_signals = df[(df['MACD-RSI'] == 'Sell') & (df['MACD-RCI'] == 'Sell')]
         
         # 必要なカラムのみを選択
-        both_sell_columns = ['Ticker', 'Company', 'Close', 'MACD', rsi_long_col, rci_long_col]
+        both_sell_columns = ['Ticker', 'Company', 'Close', 'MACD', rsi_long_col, rci_short_col, rci_long_col]
         macd_rsi_rci_sell_signals = macd_rsi_rci_sell_signals[both_sell_columns]
         
         # 数値データの小数点以下桁数を調整
         macd_rsi_rci_sell_signals['MACD'] = macd_rsi_rci_sell_signals['MACD'].round(2)
         macd_rsi_rci_sell_signals[rsi_long_col] = macd_rsi_rci_sell_signals[rsi_long_col].round(2)
+        macd_rsi_rci_sell_signals[rci_short_col] = macd_rsi_rci_sell_signals[rci_short_col].round(2)
         macd_rsi_rci_sell_signals[rci_long_col] = macd_rsi_rci_sell_signals[rci_long_col].round(2)
         
         # 終値の表示形式を調整
@@ -233,6 +242,7 @@ def extract_signals(is_test_mode: bool = False) -> bool:
             'Close': '終値',
             'MACD': 'MACD',
             rsi_long_col: f'RSI{config.RSI_LONG_PERIOD}',
+            rci_short_col: f'RCI{config.RCI_SHORT_PERIOD}',
             rci_long_col: f'RCI{config.RCI_LONG_PERIOD}'
         })
         
