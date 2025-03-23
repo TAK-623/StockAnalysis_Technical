@@ -16,6 +16,7 @@ def extract_signals(is_test_mode: bool = False) -> bool:
     このテクニカル指標分析結果ファイルから、「Buy（買い）」と「Sell（売り）」のシグナルが
     出ている銘柄をそれぞれ抽出し、個別のCSVファイルとして保存します。
     MACD-RSIとMACD-RCIの両方のシグナルを抽出します。
+    また、両方のシグナルが一致している銘柄も別途抽出します。
     テストモードでは、テスト用ディレクトリのデータを使用します。
     
     Args:
@@ -185,6 +186,66 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         # 何件のシグナルが検出され、どのファイルに出力されたかを記録
         logger.info(f"MACD-RCI Buyシグナル: {len(macd_rci_buy_signals)}件を {macd_rci_buy_output_file} に出力しました")
         logger.info(f"MACD-RCI Sellシグナル: {len(macd_rci_sell_signals)}件を {macd_rci_sell_output_file} に出力しました")
+        
+        # === 両シグナル一致（MACD-RSIとMACD-RCIが両方とも同じシグナル）を抽出 ===
+        # 両方がBuyの銘柄を抽出
+        macd_rsi_rci_buy_signals = df[(df['MACD-RSI'] == 'Buy') & (df['MACD-RCI'] == 'Buy')]
+        
+        # 必要なカラムのみを選択（両方のシグナルに使用されている指標を含める）
+        both_buy_columns = ['Ticker', 'Company', 'Close', 'MACD', rsi_long_col, rci_long_col]
+        macd_rsi_rci_buy_signals = macd_rsi_rci_buy_signals[both_buy_columns]
+        
+        # 数値データの小数点以下桁数を調整
+        macd_rsi_rci_buy_signals['MACD'] = macd_rsi_rci_buy_signals['MACD'].round(2)
+        macd_rsi_rci_buy_signals[rsi_long_col] = macd_rsi_rci_buy_signals[rsi_long_col].round(2)
+        macd_rsi_rci_buy_signals[rci_long_col] = macd_rsi_rci_buy_signals[rci_long_col].round(2)
+        
+        # カラム名を日本語に変更
+        macd_rsi_rci_buy_signals = macd_rsi_rci_buy_signals.rename(columns={
+            'Close': '終値',
+            'MACD': 'MACD',
+            rsi_long_col: f'RSI{config.RSI_LONG_PERIOD}',
+            rci_long_col: f'RCI{config.RCI_LONG_PERIOD}'
+        })
+        
+        # 両方がBuyの出力ファイルパスを設定
+        macd_rsi_rci_buy_output_file = os.path.join(output_dir, "macd_rsi_rci_signal_result_buy.csv")
+        
+        # 両方がSellの銘柄を抽出
+        macd_rsi_rci_sell_signals = df[(df['MACD-RSI'] == 'Sell') & (df['MACD-RCI'] == 'Sell')]
+        
+        # 必要なカラムのみを選択
+        both_sell_columns = ['Ticker', 'Company', 'Close', 'MACD', rsi_long_col, rci_long_col]
+        macd_rsi_rci_sell_signals = macd_rsi_rci_sell_signals[both_sell_columns]
+        
+        # 数値データの小数点以下桁数を調整
+        macd_rsi_rci_sell_signals['MACD'] = macd_rsi_rci_sell_signals['MACD'].round(2)
+        macd_rsi_rci_sell_signals[rsi_long_col] = macd_rsi_rci_sell_signals[rsi_long_col].round(2)
+        macd_rsi_rci_sell_signals[rci_long_col] = macd_rsi_rci_sell_signals[rci_long_col].round(2)
+        
+        # 終値の表示形式を調整
+        macd_rsi_rci_sell_signals['Close'] = macd_rsi_rci_sell_signals['Close'].apply(
+            lambda x: int(x) if x == int(x) else round(x, 1)
+        )
+        
+        # カラム名を日本語に変更
+        macd_rsi_rci_sell_signals = macd_rsi_rci_sell_signals.rename(columns={
+            'Close': '終値',
+            'MACD': 'MACD',
+            rsi_long_col: f'RSI{config.RSI_LONG_PERIOD}',
+            rci_long_col: f'RCI{config.RCI_LONG_PERIOD}'
+        })
+        
+        # 両方がSellの出力ファイルパスを設定
+        macd_rsi_rci_sell_output_file = os.path.join(output_dir, "macd_rsi_rci_signal_result_sell.csv")
+        
+        # 結果をCSVファイルに出力
+        macd_rsi_rci_buy_signals.to_csv(macd_rsi_rci_buy_output_file, index=False)
+        macd_rsi_rci_sell_signals.to_csv(macd_rsi_rci_sell_output_file, index=False)
+        
+        # 処理結果のログ出力
+        logger.info(f"両方Buy（MACD-RSI・MACD-RCI）シグナル: {len(macd_rsi_rci_buy_signals)}件を {macd_rsi_rci_buy_output_file} に出力しました")
+        logger.info(f"両方Sell（MACD-RSI・MACD-RCI）シグナル: {len(macd_rsi_rci_sell_signals)}件を {macd_rsi_rci_sell_output_file} に出力しました")
         
         # 処理成功を示す戻り値
         return True
