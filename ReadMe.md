@@ -57,8 +57,8 @@
     │
     └── Tools/                                   # 関連ツール
         └── MakeCompanyList/                     # CompanyListの整形ツール
-            ├── make_company_list.bat            # Pythonスクリプト実行用のバッチファイル
-            └── make_company_list.py             # 整形実行スクリプト
+            ├── make_company_indusrty_list.bat            # Pythonスクリプト実行用のバッチファイル
+            └── make_company_indusrty_list.py             # 整形実行スクリプト
 ```
 
 ## システム構成
