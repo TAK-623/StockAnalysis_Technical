@@ -11,10 +11,10 @@ from datetime import datetime, timedelta
 # =====================================================================
 
 # 基本ディレクトリ - アプリケーションのルートディレクトリ
-BASE_DIR = "C:\\Users\\mount\\Git\\StockSignal"
+BASE_DIR = "C:\\Users\\mount\\Git\\StockAnalysis_Technical"
 
 # テスト用ディレクトリ - テストモード実行時のデータ保存先
-TEST_DIR = os.path.join(BASE_DIR, "Test")
+TEST_DIR = os.path.join(BASE_DIR, "StockSignal", "Test")
 
 # =====================================================================
 # 入力ファイル設定

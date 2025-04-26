@@ -169,8 +169,8 @@ def main():
     
     # token.jsonファイルから認証情報を読み込む
     # このファイルは初回認証時に自動的に作成され、以降の認証に使用される
-    if os.path.exists('C:\\Users\\mount\\Git\\StockSignal\\token.json'):
-        creds = Credentials.from_authorized_user_file('C:\\Users\\mount\\Git\\StockSignal\\token.json', SCOPES)
+    if os.path.exists('C:\\Users\\mount\\Git\\StockAnalysis_Technical\\token.json'):
+        creds = Credentials.from_authorized_user_file('C:\\Users\\mount\\Git\\StockAnalysis_Technical\\token.json', SCOPES)
     
     # 有効な認証情報が無い場合は、ユーザーにログインを要求
     if not creds or not creds.valid:
@@ -180,11 +180,11 @@ def main():
         else:
             # 新規認証フローを開始
             flow = InstalledAppFlow.from_client_secrets_file(
-                'C:\\Users\\mount\\Git\\StockSignal\\credentials.json', SCOPES)
+                'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\credentials.json', SCOPES)
             creds = flow.run_local_server(port=8080)  # ローカルWebサーバーでOAuth認証（ポート8080使用）
         
         # 次回使用のために認証情報を保存
-        with open('C:\\Users\\mount\\Git\\StockSignal\\token.json', 'w') as token:
+        with open('C:\\Users\\mount\\Git\\StockAnalysis_Technical\\token.json', 'w') as token:
             token.write(creds.to_json())
 
     # Google Drive APIとGoogle Sheets APIのサービスオブジェクトを構築
@@ -225,13 +225,13 @@ def main():
     # アップロードするが並べ替えは行わないファイルリスト
     # シグナル結果（買い・売り）のCSVファイル
     files_to_upload_no_sort = [
-        'C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rsi_signal_result_buy.csv',  # 買いシグナルCSV
-        'C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rsi_signal_result_sell.csv', # 売りシグナルCSV
-        'C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rci_signal_result_buy.csv',  # 買いシグナルCSV
-        'C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rci_signal_result_sell.csv', # 売りシグナルCSV
-        'C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rsi_rci_signal_result_buy.csv',  # 買いシグナルCSV
-        'C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rsi_rci_signal_result_sell.csv', # 売りシグナルCSV
-        'C:\\Users\\mount\\Git\\StockSignal\\TechnicalSignal\\latest_signal.csv', # テクニカル指標最新値CSV
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_signal_result_buy.csv',  # 買いシグナルCSV
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_signal_result_sell.csv', # 売りシグナルCSV
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rci_signal_result_buy.csv',  # 買いシグナルCSV
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rci_signal_result_sell.csv', # 売りシグナルCSV
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_buy.csv',  # 買いシグナルCSV
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_sell.csv', # 売りシグナルCSV
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\TechnicalSignal\\latest_signal.csv', # テクニカル指標最新値CSV
     ]
     
     # 各ファイルについて処理：アップロード→スプレッドシート変換（ソートなし）

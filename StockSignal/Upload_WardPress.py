@@ -135,12 +135,13 @@ def main():
     メイン処理：CSVファイルの読み込み、HTML変換、WordPress投稿を実行
     """
     # 読み込むCSVファイルのパス
-    macd_rsi_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rsi_signal_result_buy.csv"   # 買いシグナルCSV
-    macd_rsi_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rsi_signal_result_sell.csv" # 売りシグナルCSV
-    macd_rci_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rci_signal_result_buy.csv"   # 買いシグナルCSV
-    macd_rci_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rci_signal_result_sell.csv" # 売りシグナルCSV
-    macd_rsi_rci_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rsi_rci_signal_result_buy.csv"   # 買いシグナルCSV
-    macd_rsi_rci_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockSignal\\Result\\macd_rsi_rci_signal_result_sell.csv" # 売りシグナルCSV
+    # ここを変更：StockSignal → StockAnalysis_Technical
+    macd_rsi_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_signal_result_buy.csv"   # 買いシグナルCSV
+    macd_rsi_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_signal_result_sell.csv" # 売りシグナルCSV
+    macd_rci_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rci_signal_result_buy.csv"   # 買いシグナルCSV
+    macd_rci_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rci_signal_result_sell.csv" # 売りシグナルCSV
+    macd_rsi_rci_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_buy.csv"   # 買いシグナルCSV
+    macd_rsi_rci_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_sell.csv" # 売りシグナルCSV
     
     # 各CSVファイルを読み込んで、銘柄コード(Ticker)列で昇順ソートして再保存
     # 表示時に銘柄コードでソートされた状態にするため
