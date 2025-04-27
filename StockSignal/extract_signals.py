@@ -36,10 +36,10 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         # テストモードと通常モードで異なるディレクトリを使用
         if is_test_mode:
             # テストモード: テスト用ディレクトリ内のTechnicalSignalフォルダを使用
-            input_dir = os.path.join(config.TEST_DIR, "TechnicalSignal")
+            input_dir = os.path.join(config.TEST_DIR, "StockSignal", "TechnicalSignal")
         else:
             # 通常モード: 本番用ディレクトリ内のTechnicalSignalフォルダを使用
-            input_dir = os.path.join(config.BASE_DIR, "TechnicalSignal")
+            input_dir = os.path.join(config.BASE_DIR, "StockSignal", "TechnicalSignal")
         
         # 入力ファイルのフルパスを生成 (latest_signal.csv)
         input_file = os.path.join(input_dir, config.LATEST_SIGNAL_FILE)
@@ -48,10 +48,10 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         # テストモードと通常モードで異なる出力先を使用
         if is_test_mode:
             # テストモード: テスト用ディレクトリ内のResultフォルダに出力
-            output_dir = os.path.join(config.TEST_DIR, "Result")
+            output_dir = os.path.join(config.TEST_DIR, "StockSignal", "Result")
         else:
             # 通常モード: 本番用ディレクトリ内のResultフォルダに出力
-            output_dir = os.path.join(config.BASE_DIR, "Result")
+            output_dir = os.path.join(config.BASE_DIR, "StockSignal", "Result")
         
         # 出力ディレクトリが存在しない場合は作成
         # exist_ok=Trueにより、ディレクトリが既に存在してもエラーにならない

@@ -37,10 +37,10 @@ RESULT_DIR = os.path.join(BASE_DIR, "Data")
 TEST_RESULT_DIR = os.path.join(TEST_DIR, "Data")
 
 # 通常処理用テクニカル指標出力ディレクトリ - テクニカル分析結果の保存先
-TECHNICAL_DIR = os.path.join(BASE_DIR, "TechnicalSignal")
+TECHNICAL_DIR = os.path.join(BASE_DIR, "StockSignal", "TechnicalSignal")
 
 # テスト用テクニカル指標出力ディレクトリ - テストモード時のテクニカル分析結果保存先
-TEST_TECHNICAL_DIR = os.path.join(TEST_DIR, "TechnicalSignal")
+TEST_TECHNICAL_DIR = os.path.join(TEST_DIR, "StockSignal", "TechnicalSignal")
 
 # =====================================================================
 # 株価データ取得設定

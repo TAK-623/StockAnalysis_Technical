@@ -948,9 +948,9 @@ def calculate_signals(tickers: List[str], is_test_mode: bool = False) -> Dict[st
     # テストモードに応じて出力ディレクトリを設定
     # テクニカル指標の計算結果を保存するディレクトリを指定
     if is_test_mode:
-        output_dir = os.path.join(config.TEST_DIR, "TechnicalSignal")
+        output_dir = os.path.join(config.TEST_DIR, "StockSignal", "TechnicalSignal")
     else:
-        output_dir = os.path.join(config.BASE_DIR, "TechnicalSignal")
+        output_dir = os.path.join(config.BASE_DIR, "StockSignal", "TechnicalSignal")
     
     # 出力先ディレクトリが存在しない場合は作成
     # exist_ok=True で既に存在する場合はエラーにしない
