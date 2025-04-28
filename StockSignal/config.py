@@ -40,7 +40,7 @@ TEST_RESULT_DIR = os.path.join(TEST_DIR, "Data")
 TECHNICAL_DIR = os.path.join(BASE_DIR, "StockSignal", "TechnicalSignal")
 
 # テスト用テクニカル指標出力ディレクトリ - テストモード時のテクニカル分析結果保存先
-TEST_TECHNICAL_DIR = os.path.join(TEST_DIR, "StockSignal", "TechnicalSignal")
+TEST_TECHNICAL_DIR = os.path.join(TEST_DIR)
 
 # =====================================================================
 # 株価データ取得設定
@@ -112,6 +112,16 @@ ICHIMOKU_TENKAN_PERIOD = 9        # 転換線期間（短期トレンド）
 ICHIMOKU_KIJUN_PERIOD = 26        # 基準線期間（中期トレンド）
 ICHIMOKU_SENKOU_SPAN_B_PERIOD = 52  # 先行スパンB期間（長期トレンド）
 ICHIMOKU_DISPLACEMENT = 26        # 先行表示期間（将来予測）
+
+# =====================================================================
+# レンジブレイク検出設定
+# =====================================================================
+
+# レンジブレイク検出期間 - 過去の高値比較期間（日数）
+RANGE_PERIOD_DAYS = 30  # デフォルト: 30日（約1か月）
+
+# 最小出来高要件 - 有効とみなす最小出来高
+MIN_VOLUME_THRESHOLD = 100000  # 10万株
 
 # =====================================================================
 # 出力ファイル設定
