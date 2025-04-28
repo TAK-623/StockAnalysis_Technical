@@ -19,6 +19,10 @@ def extract_signals(is_test_mode: bool = False) -> bool:
     また、両方のシグナルが一致している銘柄も別途抽出します。
     テストモードでは、テスト用ディレクトリのデータを使用します。
     
+    追加条件：
+    - 買いシグナル：CloseがHighとLowの中間よりも上にある（上髭が短い銘柄）
+    - 売りシグナル：CloseがHighとLowの中間よりも下にある（下髭が短い銘柄）
+    
     Args:
         is_test_mode (bool): テストモードの場合はTrue、通常モードの場合はFalse
         
@@ -78,18 +82,25 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         
         # 必要なカラムの存在確認
         # データフレームに必要なカラムが含まれているか検証
-        required_columns = ['Ticker', 'Company', 'MACD-RSI', 'MACD-RCI', 'Close', 'MACD', rsi_long_col, rci_long_col]
+        # 新たに High と Low を必要なカラムに追加（フィルタリングに使用するため）
+        required_columns = ['Ticker', 'Company', 'MACD-RSI', 'MACD-RCI', 'Close', 'High', 'Low', 'MACD', rsi_long_col, rci_long_col]
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             # 必要なカラムが見つからない場合はエラーログを出力して処理を中断
             logger.error(f"必要なカラムがCSVファイルに見つかりません: {missing_columns}")
             return False
         
+        # 高値と安値の中間値（ミッドポイント）を計算
+        # これは、ロウソク足チャートの上髭/下髭を判断するための基準値となる
+        df['Midpoint'] = (df['High'] + df['Low']) / 2
+        
         # === MACD-RSI シグナル処理 ===
         # Buyシグナルの抽出処理
         # 1. MACD-RSIカラムが'Buy'のレコードのみを抽出
-        # 2. 必要なカラム（銘柄コード、会社名、終値、MACD、RSI長期）のみを選択
-        macd_rsi_buy_signals = df[df['MACD-RSI'] == 'Buy'][['Ticker', 'Company', 'Close', 'MACD', rsi_long_col]]
+        # 2. 追加条件：終値が高値と安値の中間よりも上にある（上髭が短い銘柄）
+        # 3. 必要なカラム（銘柄コード、会社名、終値、MACD、RSI長期）のみを選択
+        macd_rsi_buy_signals = df[(df['MACD-RSI'] == 'Buy') & (df['Close'] > df['Midpoint'])]
+        macd_rsi_buy_signals = macd_rsi_buy_signals[['Ticker', 'Company', 'Close', 'MACD', rsi_long_col]]
         
         # 数値データの小数点以下桁数を調整（小数点以下2桁に丸める）
         macd_rsi_buy_signals['MACD'] = macd_rsi_buy_signals['MACD'].round(2)
@@ -106,8 +117,10 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         
         # Sellシグナルの抽出処理
         # 1. MACD-RSIカラムが'Sell'のレコードのみを抽出
-        # 2. 必要なカラム（銘柄コード、会社名、終値、MACD、RSI長期）のみを選択
-        macd_rsi_sell_signals = df[df['MACD-RSI'] == 'Sell'][['Ticker', 'Company', 'Close', 'MACD', rsi_long_col]]
+        # 2. 追加条件：終値が高値と安値の中間よりも下にある（下髭が短い銘柄）
+        # 3. 必要なカラム（銘柄コード、会社名、終値、MACD、RSI長期）のみを選択
+        macd_rsi_sell_signals = df[(df['MACD-RSI'] == 'Sell') & (df['Close'] < df['Midpoint'])]
+        macd_rsi_sell_signals = macd_rsi_sell_signals[['Ticker', 'Company', 'Close', 'MACD', rsi_long_col]]
         
         # 数値データの小数点以下桁数を調整
         macd_rsi_sell_signals['MACD'] = macd_rsi_sell_signals['MACD'].round(2)
@@ -134,14 +147,16 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         
         # 処理結果のログ出力
         # 何件のシグナルが検出され、どのファイルに出力されたかを記録
-        logger.info(f"MACD-RSI Buyシグナル: {len(macd_rsi_buy_signals)}件を {macd_rsi_buy_output_file} に出力しました")
-        logger.info(f"MACD-RSI Sellシグナル: {len(macd_rsi_sell_signals)}件を {macd_rsi_sell_output_file} に出力しました")
+        logger.info(f"MACD-RSI Buyシグナル（Close > Midpoint条件付き）: {len(macd_rsi_buy_signals)}件を {macd_rsi_buy_output_file} に出力しました")
+        logger.info(f"MACD-RSI Sellシグナル（Close < Midpoint条件付き）: {len(macd_rsi_sell_signals)}件を {macd_rsi_sell_output_file} に出力しました")
         
         # === MACD-RCI シグナル処理 ===
         # Buyシグナルの抽出処理
         # 1. MACD-RCIカラムが'Buy'のレコードのみを抽出
-        # 2. 必要なカラム（銘柄コード、会社名、終値、MACD、RCI長期）のみを選択
-        macd_rci_buy_signals = df[df['MACD-RCI'] == 'Buy'][['Ticker', 'Company', 'Close', 'MACD', rci_short_col, rci_long_col]]
+        # 2. 追加条件：終値が高値と安値の中間よりも上にある（上髭が短い銘柄）
+        # 3. 必要なカラム（銘柄コード、会社名、終値、MACD、RCI短期、RCI長期）のみを選択
+        macd_rci_buy_signals = df[(df['MACD-RCI'] == 'Buy') & (df['Close'] > df['Midpoint'])]
+        macd_rci_buy_signals = macd_rci_buy_signals[['Ticker', 'Company', 'Close', 'MACD', rci_short_col, rci_long_col]]
         
         # 数値データの小数点以下桁数を調整（小数点以下2桁に丸める）
         macd_rci_buy_signals['MACD'] = macd_rci_buy_signals['MACD'].round(2)
@@ -160,8 +175,10 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         
         # Sellシグナルの抽出処理
         # 1. MACD-RCIカラムが'Sell'のレコードのみを抽出
-        # 2. 必要なカラム（銘柄コード、会社名、終値、MACD、RCI長期）のみを選択
-        macd_rci_sell_signals = df[df['MACD-RCI'] == 'Sell'][['Ticker', 'Company', 'Close', 'MACD', rci_short_col, rci_long_col]]
+        # 2. 追加条件：終値が高値と安値の中間よりも下にある（下髭が短い銘柄）
+        # 3. 必要なカラム（銘柄コード、会社名、終値、MACD、RCI短期、RCI長期）のみを選択
+        macd_rci_sell_signals = df[(df['MACD-RCI'] == 'Sell') & (df['Close'] < df['Midpoint'])]
+        macd_rci_sell_signals = macd_rci_sell_signals[['Ticker', 'Company', 'Close', 'MACD', rci_short_col, rci_long_col]]
         
         # 数値データの小数点以下桁数を調整
         macd_rci_sell_signals['MACD'] = macd_rci_sell_signals['MACD'].round(2)
@@ -190,12 +207,15 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         
         # 処理結果のログ出力
         # 何件のシグナルが検出され、どのファイルに出力されたかを記録
-        logger.info(f"MACD-RCI Buyシグナル: {len(macd_rci_buy_signals)}件を {macd_rci_buy_output_file} に出力しました")
-        logger.info(f"MACD-RCI Sellシグナル: {len(macd_rci_sell_signals)}件を {macd_rci_sell_output_file} に出力しました")
+        logger.info(f"MACD-RCI Buyシグナル（Close > Midpoint条件付き）: {len(macd_rci_buy_signals)}件を {macd_rci_buy_output_file} に出力しました")
+        logger.info(f"MACD-RCI Sellシグナル（Close < Midpoint条件付き）: {len(macd_rci_sell_signals)}件を {macd_rci_sell_output_file} に出力しました")
         
         # === 両シグナル一致（MACD-RSIとMACD-RCIが両方とも同じシグナル）を抽出 ===
         # 両方がBuyの銘柄を抽出
-        macd_rsi_rci_buy_signals = df[(df['MACD-RSI'] == 'Buy') & (df['MACD-RCI'] == 'Buy')]
+        # 追加条件：終値が高値と安値の中間よりも上にある（上髭が短い銘柄）
+        macd_rsi_rci_buy_signals = df[(df['MACD-RSI'] == 'Buy') & 
+                                      (df['MACD-RCI'] == 'Buy') & 
+                                      (df['Close'] > df['Midpoint'])]
         
         # 必要なカラムのみを選択（両方のシグナルに使用されている指標を含める）
         both_buy_columns = ['Ticker', 'Company', 'Close', 'MACD', rsi_long_col, rci_short_col, rci_long_col]
@@ -220,7 +240,10 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         macd_rsi_rci_buy_output_file = os.path.join(output_dir, "macd_rsi_rci_signal_result_buy.csv")
         
         # 両方がSellの銘柄を抽出
-        macd_rsi_rci_sell_signals = df[(df['MACD-RSI'] == 'Sell') & (df['MACD-RCI'] == 'Sell')]
+        # 追加条件：終値が高値と安値の中間よりも下にある（下髭が短い銘柄）
+        macd_rsi_rci_sell_signals = df[(df['MACD-RSI'] == 'Sell') & 
+                                       (df['MACD-RCI'] == 'Sell') & 
+                                       (df['Close'] < df['Midpoint'])]
         
         # 必要なカラムのみを選択
         both_sell_columns = ['Ticker', 'Company', 'Close', 'MACD', rsi_long_col, rci_short_col, rci_long_col]
@@ -254,8 +277,8 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         macd_rsi_rci_sell_signals.to_csv(macd_rsi_rci_sell_output_file, index=False)
         
         # 処理結果のログ出力
-        logger.info(f"両方Buy（MACD-RSI・MACD-RCI）シグナル: {len(macd_rsi_rci_buy_signals)}件を {macd_rsi_rci_buy_output_file} に出力しました")
-        logger.info(f"両方Sell（MACD-RSI・MACD-RCI）シグナル: {len(macd_rsi_rci_sell_signals)}件を {macd_rsi_rci_sell_output_file} に出力しました")
+        logger.info(f"両方Buy（MACD-RSI・MACD-RCI）シグナル（Close > Midpoint条件付き）: {len(macd_rsi_rci_buy_signals)}件を {macd_rsi_rci_buy_output_file} に出力しました")
+        logger.info(f"両方Sell（MACD-RSI・MACD-RCI）シグナル（Close < Midpoint条件付き）: {len(macd_rsi_rci_sell_signals)}件を {macd_rsi_rci_sell_output_file} に出力しました")
         
         # 処理成功を示す戻り値
         return True
