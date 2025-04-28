@@ -18,6 +18,7 @@ from data_loader import setup_logger, load_company_list  # ロガー設定と企
 from stock_fetcher import fetch_stock_data  # 株価データを取得する関数
 from technical_indicators import calculate_signals  # テクニカル指標を計算する関数
 from extract_signals import extract_signals  # 売買シグナルを抽出する関数
+from range_breakout import identify_range_breakouts  # レンジブレイク銘柄抽出関数
 
 def main():
     """
@@ -64,6 +65,17 @@ def main():
             # 計算されたテクニカル指標に基づいて売買シグナルを抽出
             logger.info("Buy/Sellシグナルの抽出を開始します...")
             extract_success = extract_signals(is_test_mode)
+            
+            # main関数内のextract_signals関数の後に追加
+            # シグナル抽出後にレンジブレイク銘柄の抽出処理を実行
+            logger.info("レンジブレイク銘柄の抽出を開始します...")
+            breakout_success = identify_range_breakouts(is_test_mode)
+                        
+            # レンジブレイク抽出の結果をログに記録
+            if breakout_success:
+                logger.info("レンジブレイク銘柄の抽出が完了しました。")
+            else:
+                logger.error("レンジブレイク銘柄の抽出中にエラーが発生しました。")
             
             # シグナル抽出の結果をログに記録
             if extract_success:

@@ -232,6 +232,7 @@ def main():
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_buy.csv',  # 買いシグナルCSV
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_sell.csv', # 売りシグナルCSV
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\TechnicalSignal\\latest_signal.csv', # テクニカル指標最新値CSV
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\Range_Brake.csv', # レンジブレイク銘柄抽出
     ]
     
     # 各ファイルについて処理：アップロード→スプレッドシート変換（ソートなし）

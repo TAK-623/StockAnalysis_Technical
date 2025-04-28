@@ -142,10 +142,11 @@ def main():
     macd_rci_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rci_signal_result_sell.csv" # 売りシグナルCSV
     macd_rsi_rci_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_buy.csv"   # 買いシグナルCSV
     macd_rsi_rci_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_sell.csv" # 売りシグナルCSV
+    range_break_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\Range_Brake.csv" # レンジブレイク銘柄CSV
     
     # 各CSVファイルを読み込んで、銘柄コード(Ticker)列で昇順ソートして再保存
     # 表示時に銘柄コードでソートされた状態にするため
-    for file_path in [macd_rsi_signal_buy_csv_file_path, macd_rsi_signal_sell_csv_file_path, macd_rci_signal_buy_csv_file_path, macd_rci_signal_sell_csv_file_path, macd_rsi_rci_signal_buy_csv_file_path, macd_rsi_rci_signal_sell_csv_file_path]:
+    for file_path in [macd_rsi_signal_buy_csv_file_path, macd_rsi_signal_sell_csv_file_path, macd_rci_signal_buy_csv_file_path, macd_rci_signal_sell_csv_file_path, macd_rsi_rci_signal_buy_csv_file_path, macd_rsi_rci_signal_sell_csv_file_path, macd_rsi_rci_signal_sell_csv_file_path]:
         df = pd.read_csv(file_path, encoding='utf-8')    # CSVファイルを読み込み
         df_sorted = df.sort_values(by='Ticker')          # Ticker列で昇順ソート
         df_sorted.to_csv(file_path, index=False, encoding='utf-8')  # ソート結果を上書き保存
@@ -157,6 +158,7 @@ def main():
     html_table_macd_rci_sell, macd_rci_sell_count = read_csv_to_html_table(macd_rci_signal_sell_csv_file_path) # 売りシグナルテーブル
     html_table_macd_rsi_rci_buy, macd_rsi_rci_buy_count = read_csv_to_html_table(macd_rsi_rci_signal_buy_csv_file_path)   # 買いシグナルテーブル
     html_table_macd_rsi_rci_sell, macd_rsi_rci_sell_count = read_csv_to_html_table(macd_rsi_rci_signal_sell_csv_file_path) # 売りシグナルテーブル
+    html_table_range_break, range_break_count = read_csv_to_html_table(range_break_csv_file_path) # 売りシグナルテーブル
     
     # 投稿のタイトルと内容を作成
     post_title = "売買シグナル_{current_date}".format(current_date=current_date)  # 投稿タイトル
@@ -273,6 +275,28 @@ def main():
         <div class="scroll-box">
         売りシグナルテーブル
         {html_table_macd_rsi_rci_sell}
+        </div>
+        </div>
+        </div>
+        <p><!-- /wp:st-blocks/st-slidebox --></p>
+        
+        <h3>レンジブレイク銘柄 ({range_break_count})</h3>
+        <p>過去1か月間の最高値を更新した銘柄です。</p>
+        <p>下記の条件で抽出しています。
+        </p>[st-mybox title="レンジブレイク銘柄を抽出する条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
+        <ol>
+        <li>最新の終値が過去1か月間の最高値を上回っている</li>
+        <li>最新の出来高が過去1か月間の出来高平均値の1.5倍よりも多い</li>
+        <li>最新の出来高が10万以上</li>
+        </ol>
+        [/st-mybox]        
+        <p><!-- wp:st-blocks/st-slidebox --></p>
+        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
+        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
+        <div class="st-slidebox" data-st-slidebox-content="">
+        <div class="scroll-box">
+        レンジブレイク銘柄
+        {html_table_range_break}
         </div>
         </div>
         </div>
