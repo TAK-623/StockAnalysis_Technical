@@ -280,7 +280,7 @@ def main():
         </div>
         <p><!-- /wp:st-blocks/st-slidebox --></p>
         
-        <h3>レンジブレイク銘柄 ({range_break_count})</h3>
+        <h2>レンジブレイク銘柄 ({range_break_count})</h2>
         <p>過去1か月間の最高値を更新した銘柄です。</p>
         <p>下記の条件で抽出しています。
         </p>[st-mybox title="レンジブレイク銘柄を抽出する条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
