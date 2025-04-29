@@ -10,7 +10,4 @@ echo WordPressへのアップロードが完了しました。
 echo CSVファイルのアップロードを開始します...
 python Upload_csv.py
 echo すべての処理が完了しました。
-echo Xへポストしています...
-python ../X_twitter/post_wp_to_x.py
-echo すべての処理が完了しました。
 pause
