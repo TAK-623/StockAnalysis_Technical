@@ -113,7 +113,7 @@ def post_to_wordpress(title, post_content):
         "status": "publish",        # 公開ステータス（下書き="draft"）
         "categories": [22],         # カテゴリーID（22=株価情報カテゴリー）
         "tags": [19],               # タグID（19=株価情報タグ）
-        "featured_media": 233       # アイキャッチ画像ID
+        "featured_media": 809       # アイキャッチ画像ID
     }
     
     # WordPress REST APIにリクエストを送信

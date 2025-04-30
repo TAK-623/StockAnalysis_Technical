@@ -111,7 +111,7 @@ def post_to_wordpress(title, post_content):
         "status": "publish",        # 公開ステータス（下書き="draft"）
         "categories": [30],         # カテゴリーID（22=出来高移動平均カテゴリー）
         "tags": [19],               # タグID（19=自動投稿タグ）
-        "featured_media": 233       # アイキャッチ画像ID
+        "featured_media": 808       # アイキャッチ画像ID
     }
     
     # WordPress REST APIにリクエストを送信
