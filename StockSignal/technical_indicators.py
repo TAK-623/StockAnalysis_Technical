@@ -632,12 +632,12 @@ def calculate_trading_signals_MACD_RCI(df: pd.DataFrame) -> pd.DataFrame:
     
     条件：
     Buy シグナル:
-    - 直近3営業日内にRCIが-80を上回る
+    - 直近5営業日内にRCIが-80を上回る
     - MACDがMACD_Signalを上回る
     - RCI短期が50以上
     
     Sell シグナル:
-    - 直近3営業日内にRCIが80を下回る
+    - 直近5営業日内にRCIが80を下回る
     - MACDがMACD_Signalを下回る
     - RCI短期が-50以下
     
@@ -672,17 +672,17 @@ def calculate_trading_signals_MACD_RCI(df: pd.DataFrame) -> pd.DataFrame:
     # 必要な列がすべて存在する場合は、シグナル列を初期化（空文字列）
     result['MACD-RCI'] = ''
     
-    # データが3行以上あるか確認（直近3営業日の判定に必要）
-    if len(result) < 3:
+    # データが5行以上あるか確認（直近5営業日の判定に必要）
+    if len(result) < 5:
         logger = logging.getLogger("StockSignal")
-        logger.warning(f"MACD-RCIシグナル計算には少なくとも3日分のデータが必要です")
+        logger.warning(f"MACD-RCIシグナル計算には少なくとも5日分のデータが必要です")
         return result
     
-    # 各行に対して直近3営業日のRCIのチェックを行う
-    for i in range(2, len(result)):
-        # 現在の日付と直近3営業日のデータを取得
+    # 各行に対して直近5営業日のRCIのチェックを行う
+    for i in range(4, len(result)):
+        # 現在の日付と直近5営業日のデータを取得
         current_idx = result.index[i]
-        past_3days = result.iloc[i-2:i+1]  # 現在の日付を含む3営業日分のデータ
+        past_5days = result.iloc[i-4:i+1]  # 現在の日付を含む5営業日分のデータ
         
         # MACDシグナルとの関係を確認
         macd_above_signal = result.iloc[i]['MACD'] > result.iloc[i]['MACD_Signal']
@@ -692,17 +692,17 @@ def calculate_trading_signals_MACD_RCI(df: pd.DataFrame) -> pd.DataFrame:
         rci_short_above_50 = result.iloc[i][rci_short_column] >= 50
         rci_short_below_minus_50 = result.iloc[i][rci_short_column] <= -50
         
-        # 直近3営業日内でRCIが-80を上回ったかチェック（Buyシグナル用）
+        # 直近5営業日内でRCIが-80を上回ったかチェック（Buyシグナル用）
         rci_crosses_above_minus_80 = False
-        for j in range(len(past_3days) - 1):
-            if past_3days.iloc[j][rci_long_column] <= -80 and past_3days.iloc[j+1][rci_long_column] > -80:
+        for j in range(len(past_5days) - 1):
+            if past_5days.iloc[j][rci_long_column] <= -80 and past_5days.iloc[j+1][rci_long_column] > -80:
                 rci_crosses_above_minus_80 = True
                 break
         
-        # 直近3営業日内でRCIが80を下回ったかチェック（Sellシグナル用）
+        # 直近5営業日内でRCIが80を下回ったかチェック（Sellシグナル用）
         rci_crosses_below_80 = False
-        for j in range(len(past_3days) - 1):
-            if past_3days.iloc[j][rci_long_column] >= 80 and past_3days.iloc[j+1][rci_long_column] < 80:
+        for j in range(len(past_5days) - 1):
+            if past_5days.iloc[j][rci_long_column] >= 80 and past_5days.iloc[j+1][rci_long_column] < 80:
                 rci_crosses_below_80 = True
                 break
         
