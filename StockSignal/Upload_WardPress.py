@@ -215,12 +215,14 @@ def main():
         [st-mybox title="買いシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
         <ol>
         <li>MACDがMACDシグナルを上回っている</li>
+        <li>RCI短期が50%を上回る</li>
         <li>RCI長期が過去5営業日内に-80%を上回る</li>
         </ol>
         [/st-mybox]
         [st-mybox title="売りシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
         <ol>
         <li>MACDがMACDシグナルを下回っている</li>
+        <li>RCI短期が-50%を下回る</li>
         <li>RCI長期が過去5営業日内に80%を下回る</li>
         </ol>
         [/st-mybox]
