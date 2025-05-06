@@ -166,12 +166,9 @@ def main():
         <p>短期の移動平均が長期の移動平均を上回っている業種は下記です。</p>
         <p><!-- wp:st-blocks/st-slidebox --></p>
         <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-        <div class="st-slidebox" data-st-slidebox-content="">
         <div class="scroll-box">
-        出来高の短期移動平均が長期移動平均を上回っている業種
+        <p>出来高の短期移動平均が長期移動平均を上回っている業種<br>※Ratio = 短期移動平均(ShortMA) ÷ 長期移動平均(LongMA)</p>
         {html_table_industies_volume_avobe_ma}
-        </div>
         </div>
         </div>
         <p><!-- /wp:st-blocks/st-slidebox --></p>
