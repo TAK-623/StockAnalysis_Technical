@@ -56,9 +56,14 @@
     │   └── company_list_20250228_test.csv       # テスト用対象企業リスト
     │
     └── Tools/                                   # 関連ツール
-        └── MakeCompanyList/                     # CompanyListの整形ツール
-            ├── make_company_indusrty_list.bat            # Pythonスクリプト実行用のバッチファイル
-            └── make_company_indusrty_list.py             # 整形実行スクリプト
+        ├── MakeCompanyList/                     # CompanyListの整形ツール
+        │   ├── make_company_indusrty_list.bat   # Pythonスクリプト実行用のバッチファイル
+        │   └── make_company_indusrty_list.py    # 整形実行スクリプト
+        │
+        └── Buy-Sell_Simulation/                 # 売買シグナルの評価ツール
+            ├── InputData/                       # ツールの入力データ格納フォルダ
+            ├── Output/                          # ツールの出力データ格納ファルダ
+            └── evaluate_signals.py              # 売買シグナル評価ツール
 ```
 
 ## システム構成
