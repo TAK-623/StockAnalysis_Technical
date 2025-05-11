@@ -2,9 +2,10 @@
 range_breakout.py - レンジ相場をブレイクした銘柄を抽出するモジュール
 
 このモジュールは下記の条件に一致する銘柄を抽出します:
-1. 最新のCloseが直近1か月の最高値を更新している
+1. 最新のCloseが直近1か月の「前日までの」最高値を更新している
 2. 最新の出来高が直近1か月の移動平均の1.5倍よりも多い
 3. 出来高が10万以上である
+4. 最新のClose値と、High値の差分が、Open値の1%未満である（上髭の長い銘柄を除外）
 """
 import os
 import pandas as pd
@@ -126,14 +127,21 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
                 # 1か月前の日付を計算
                 one_month_ago = latest_date - timedelta(days=30)
                 
-                # 1か月分のデータを抽出
+                # 1か月分のデータを抽出（最新日を含む）
                 one_month_data = df[df['Date'] >= one_month_ago]
                 
                 # 最新のデータを取得
                 latest_data = df.iloc[-1]
                 
-                # 条件1: 最新のCloseが直近1か月の最高値を更新しているか
-                condition1 = latest_data['Close'] >= one_month_data['High'].max()
+                # 前日までのデータを抽出（最新日を除く）
+                previous_data = one_month_data[one_month_data['Date'] < latest_date]
+                
+                # 条件1: 最新のCloseが直近1か月の「前日までの」最高値を更新しているか
+                if previous_data.empty:
+                    # 前日までのデータがない場合は条件を満たさないとみなす
+                    condition1 = False
+                else:
+                    condition1 = latest_data['Close'] >= previous_data['High'].max()
                 
                 # 条件2: 最新の出来高が直近1か月の移動平均の1.5倍よりも多いか
                 volume_ma = one_month_data['Volume'].mean()
@@ -142,19 +150,33 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
                 # 条件3: 出来高が10万以上であるか
                 condition3 = latest_data['Volume'] >= 100000
                 
+                # 条件4: 最新のClose値と、High値の差分が、Open値の1%未満である（上髭の長い銘柄を除外）
+                high_diff_percent = (latest_data['High'] - latest_data['Close']) / latest_data['Open'] * 100
+                condition4 = high_diff_percent < 1.0
+                
+                # デバッグ情報の出力
+                ticker = csv_file.split('_')[0]
+                logger.debug(f"銘柄: {ticker}")
+                logger.debug(f"条件1（前日までの最高値更新）: {condition1}")
+                logger.debug(f"最新のClose: {latest_data['Close']}, 前日までの最高値: {previous_data['High'].max() if not previous_data.empty else 'N/A'}")
+                logger.debug(f"条件2（出来高1.5倍）: {condition2}")
+                logger.debug(f"最新の出来高: {latest_data['Volume']}, 移動平均: {volume_ma}")
+                logger.debug(f"条件3（出来高10万以上）: {condition3}")
+                logger.debug(f"条件4（上髭の長さ < 1%）: {condition4}")
+                logger.debug(f"高値と終値の差: {latest_data['High'] - latest_data['Close']}, Open値の1%: {latest_data['Open'] * 0.01}, 差分パーセント: {high_diff_percent:.2f}%")
+                
                 # すべての条件を満たす場合、結果リストに追加
-                if condition1 and condition2 and condition3:
-                    # Tickerを抽出（ファイル名から）
-                    ticker = csv_file.split('_')[0]
-                    
+                if condition1 and condition2 and condition3 and condition4:
                     # 企業名を取得（マッピングに存在しない場合は空文字）
                     company_name = company_info.get(ticker, "")
                     
-                    # 結果リストに追加（Month_High, Volume, Volume_MAは除外）
+                    # 結果リストに追加
                     breakout_stocks.append({
                         'Ticker': ticker,
                         'Company': company_name,
-                        'Close': latest_data['Close']
+                        'Close': latest_data['Close'],
+                        'Previous_High': previous_data['High'].max() if not previous_data.empty else None,
+                        'Upper_Shadow_Pct': high_diff_percent
                     })
                     
                     logger.info(f"レンジブレイク銘柄を検出: {ticker} - {company_name}")
@@ -168,8 +190,8 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
         # 結果がない場合
         if result_df.empty:
             logger.info("条件に一致する銘柄は見つかりませんでした。")
-            # 空のファイルを出力（Month_High, Volume, Volume_MAは除外）
-            result_df = pd.DataFrame(columns=['Ticker', 'Company', 'Close'])
+            # 空のファイルを出力
+            result_df = pd.DataFrame(columns=['Ticker', 'Company', 'Close', 'Previous_High', 'Upper_Shadow_Pct'])
         
         # 結果をCSVに保存
         output_path = os.path.join(result_dir, "Range_Brake.csv")
