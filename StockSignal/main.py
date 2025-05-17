@@ -17,7 +17,7 @@ import config  # 設定値を管理するモジュール
 from data_loader import setup_logger, load_company_list  # ロガー設定と企業リスト読み込み関数
 from stock_fetcher import fetch_stock_data  # 株価データを取得する関数
 from technical_indicators import calculate_signals  # テクニカル指標を計算する関数
-from extract_signals import extract_signals  # 売買シグナルを抽出する関数
+from extract_signals import extract_signals, extract_strong_buying_trend, extract_strong_selling_trend  # 売買シグナルとトレンド銘柄を抽出する関数
 from range_breakout import identify_range_breakouts  # レンジブレイク銘柄抽出関数
 
 def main():
@@ -83,6 +83,26 @@ def main():
             else:
                 logger.error("Buy/Sellシグナルの抽出中にエラーが発生しました。")
             
+            # シグナル抽出後に強気トレンド銘柄の抽出処理を実行
+            logger.info("強気トレンド銘柄の抽出を開始します...")
+            strong_buying_success = extract_strong_buying_trend(is_test_mode)
+                        
+            # 強気トレンド抽出の結果をログに記録
+            if strong_buying_success:
+                logger.info("強気トレンド銘柄の抽出が完了しました。")
+            else:
+                logger.error("強気トレンド銘柄の抽出中にエラーが発生しました。")
+
+            # 強気トレンド銘柄抽出後に、強気売りトレンド銘柄の抽出処理を実行
+            logger.info("強気売りトレンド銘柄の抽出を開始します...")
+            strong_selling_success = extract_strong_selling_trend(is_test_mode)
+                        
+            # 強気売りトレンド抽出の結果をログに記録
+            if strong_selling_success:
+                logger.info("強気売りトレンド銘柄の抽出が完了しました。")
+            else:
+                logger.error("強気売りトレンド銘柄の抽出中にエラーが発生しました。")
+    
         except Exception as e:
             # テクニカル指標計算中のエラーハンドリング
             logger.error(f"テクニカル指標の計算中にエラーが発生しました: {str(e)}")

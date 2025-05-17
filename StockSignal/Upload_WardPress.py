@@ -3,7 +3,7 @@
 
 このスクリプトは、株価シグナル分析の結果をWordPressサイトに自動投稿します。
 主な機能：
-1. 買いシグナルと売りシグナルのCSVファイルを読み込み
+1. 投稿する各種CSVファイルを読み込み
 2. CSVデータをHTML形式のテーブルに変換
 3. WordPress REST APIを使用して記事を投稿
 4. 記事内に展開可能なブロックとして表を表示
@@ -26,7 +26,7 @@ current_date = (datetime.now()).strftime("%Y/%m/%d")  # YYYY/MM/DD形式
 # 投稿の説明文と銘柄コードの解説を含む
 intro_text = """
 <p>{current_date}終わり時点での情報です。</p>
-<p>Pythonを使用して自動でデータ収集&演算を行っています。</p>
+<p>Pythonを使用して自動でデータ収集&演算を行い、売買シグナルの出た銘柄、強いトレンドのある銘柄、レンジをブレイクした銘柄をそれぞれ抽出しています。</p>
 <p>銘柄名に付いているアルファベットで市場を表しています。</p>
 <div class="graybox">
 <p>P: プライム市場の銘柄</p>
@@ -34,7 +34,9 @@ intro_text = """
 <p>G: グロース市場の銘柄</p>
 </div>
 <p></p>
-<p>シグナルはMACDとRSIをもとに算出したものと、MACDとRCIをもとに算出したものの2種類を挙げています。</p>
+<p>シグナルはMACDとRSIをもとに算出したものと、MACDとRCIをもとに算出したもの、MACDとRSIとRCIをもとに算出したものの3種類を挙げています。</p>
+<p>強いトレンド銘柄は買いトレンドと売りトレンドの両方の銘柄を挙げています。</p>
+<p>レンジブレイク銘柄は、直近1か月の高値をブレイクした銘柄を挙げています。</p>
 <p></p>
 """.format(current_date=current_date)
 
@@ -143,6 +145,8 @@ def main():
     macd_rsi_rci_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_buy.csv"   # 買いシグナルCSV
     macd_rsi_rci_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_sell.csv" # 売りシグナルCSV
     range_break_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\Range_Brake.csv" # レンジブレイク銘柄CSV
+    strong_buying_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_buying_trend.csv", # 強い買いトレンド銘柄抽出
+    strong_selling_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_selling_trend.csv", # 強い売りトレンド銘柄抽出
     
     # 各CSVファイルを読み込んで、銘柄コード(Ticker)列で昇順ソートして再保存
     # 表示時に銘柄コードでソートされた状態にするため
@@ -158,7 +162,9 @@ def main():
     html_table_macd_rci_sell, macd_rci_sell_count = read_csv_to_html_table(macd_rci_signal_sell_csv_file_path) # 売りシグナルテーブル
     html_table_macd_rsi_rci_buy, macd_rsi_rci_buy_count = read_csv_to_html_table(macd_rsi_rci_signal_buy_csv_file_path)   # 買いシグナルテーブル
     html_table_macd_rsi_rci_sell, macd_rsi_rci_sell_count = read_csv_to_html_table(macd_rsi_rci_signal_sell_csv_file_path) # 売りシグナルテーブル
-    html_table_range_break, range_break_count = read_csv_to_html_table(range_break_csv_file_path) # 売りシグナルテーブル
+    html_table_range_break, range_break_count = read_csv_to_html_table(range_break_csv_file_path) # レンジブレイク銘柄テーブル
+    html_table_strong_buying, strong_buying_count = read_csv_to_html_table(strong_buying_csv_file_path) # 強い買いトレンド銘柄テーブル
+    html_table_strong_selling, strong_selling_count = read_csv_to_html_table(strong_selling_csv_file_path) # 強い売りトレンド銘柄テーブル
     
     # 投稿のタイトルと内容を作成
     post_title = "売買シグナル_{current_date}".format(current_date=current_date)  # 投稿タイトル
@@ -282,6 +288,48 @@ def main():
         </div>
         <p><!-- /wp:st-blocks/st-slidebox --></p>
         
+        <h2>強いトレンド銘柄</h2>
+        <p>目先のトレンドが強い銘柄を下記の条件で抽出しています。</p>
+        [st-mybox title="強い買いトレンド抽出の条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
+        <ol>
+        <li>前の営業日の短期移動平均と中期移動平均の差分よりも、最新の短期移動平均と中期移動平均の差分の方が大きい</li>
+        <li>「短期移動平均 ＞ 中期移動平均 ＞ 長期移動平均」の関係が成立している</li>
+        <li>最新の終値が短期移動平均よりも高い</li>
+        </ol>
+        [/st-mybox]
+        [st-mybox title="強い売りトレンド抽出の条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
+        <ol>
+        <li>前の営業日の中期移動平均と短期移動平均の差分よりも、最新の中期移動平均と短期移動平均の差分の方が大きい</li>
+        <li>「短期移動平均 ＜ 中期移動平均 ＜ 長期移動平均」の関係が成立している</li>
+        <li>最新の終値が短期移動平均よりも安い</li>
+        </ol>
+        [/st-mybox]
+        <h3>強い買いトレンド銘柄（{strong_buying_count}銘柄）</h3>
+        <p><!-- wp:st-blocks/st-slidebox --></p>
+        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
+        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
+        <div class="st-slidebox" data-st-slidebox-content="">
+        <div class="scroll-box">
+        強い買いトレンド銘柄テーブル
+        {html_table_strong_buying}
+        </div>
+        </div>
+        </div>
+        <p><!-- /wp:st-blocks/st-slidebox --></p>
+        
+        <h3>強い売りトレンド銘柄（{strong_selling_count}銘柄）</h3>
+        <p><!-- wp:st-blocks/st-slidebox --></p>
+        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
+        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
+        <div class="st-slidebox" data-st-slidebox-content="">
+        <div class="scroll-box">
+        強い売りトレンド銘柄テーブル
+        {html_table_strong_selling}
+        </div>
+        </div>
+        </div>
+        <p><!-- /wp:st-blocks/st-slidebox --></p>
+
         <h2>レンジブレイク銘柄 ({range_break_count})</h2>
         <p>過去1か月間の最高値を更新した銘柄です。</p>
         <p>下記の条件で抽出しています。

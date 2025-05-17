@@ -41,7 +41,9 @@
     │   │
     │   ├── Result/                                     # 分析結果出力ディレクトリ
     │   │   ├── signal_result_buy.csv                   # 買いシグナル銘柄リスト WardPress・GoogleDriveにアップ
-    │   │   └── signal_result_sell.csv                  # 売りシグナル銘柄リスト WardPress・GoogleDriveにアップ
+    │   │   ├── signal_result_sell.csv                  # 売りシグナル銘柄リスト WardPress・GoogleDriveにアップ
+    │   │   ├── strong_buying_trend.csv                 # 強気買いトレンド銘柄リスト WardPress・GoogleDriveにアップ
+    │   │   └── strong_selling_trend.csv                # 強気売りトレンド銘柄リスト WardPress・GoogleDriveにアップ
     │   │
     │   └── Test-BatchFiles/                            # テスト用の単体ファイル実行バッチ
     │       ├── single-test_run_Upload_csv.bat           # single-test_run_Upload_csv.pyの実行
@@ -258,6 +260,19 @@ run_stock_signal_test.bat
      - 価格が雲の下にある
      - 遅行線が価格より下にある
      - 転換線が基準線より下にある
+5. **強気買いトレンド**
+   - **条件**:
+     - 前の営業日の短期移動平均と中期移動平均の差分よりも、最新の短期移動平均と中期移動平均の差分の方が大きい（上昇トレンドの加速）
+     - 「短期移動平均 ＞ 中期移動平均 ＞ 長期移動平均」の関係が成立している（上昇トレンドの順序確認）
+     - 最新のClose値が短期移動平均よりも高い（現在値がトレンドより強い）
+   - **出力ファイル**: `strong_buying_trend.csv`
+
+6. **強気売りトレンド**
+   - **条件**:
+     - 前の営業日の中期移動平均と短期移動平均の差分よりも、最新の中期移動平均と短期移動平均の差分の方が大きい（下降トレンドの加速）
+     - 「短期移動平均 ＜ 中期移動平均 ＜ 長期移動平均」の関係が成立している（下降トレンドの順序確認）
+     - 最新のClose値が短期移動平均よりも低い（現在値がトレンドより弱い）
+   - **出力ファイル**: `strong_selling_trend.csv`
 
 ### 追加の抽出条件
 
