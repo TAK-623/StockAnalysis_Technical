@@ -39,7 +39,7 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
         # 入出力ディレクトリの設定（テストモードに応じて切り替え）
         if is_test_mode:
             technical_dir = config.TEST_TECHNICAL_DIR
-            result_dir = os.path.join(config.TEST_DIR, "StockSignal", "Result")
+            result_dir = os.path.join(config.TEST_DIR, "Result")
             company_list_file = config.COMPANY_LIST_TEST_FILE
         else:
             technical_dir = config.TECHNICAL_DIR
