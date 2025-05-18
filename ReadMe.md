@@ -358,10 +358,11 @@ https://www.jpx.co.jp/markets/statistics-equities/misc/01.html
 3. コマンドラインからスクリプトを実行：
 
 ```bash
-python evaluate_signals.py 20240501
+python evaluate_signals.py 20240501 20250518
 ```
 
 ※「20240501」の部分には、評価したい日付をyyyymmdd形式で指定します。
+※「20250518」の部分には、2025/5/18時点の株価情報を使用したい場合に指定します。指定しない場合、最新の株価情報を使用します。
 
 ### テクニカル指標と評価方法
 
