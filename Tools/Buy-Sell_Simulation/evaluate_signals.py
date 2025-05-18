@@ -21,8 +21,14 @@ def get_next_business_day(date_str):
     else:
         return next_day
 
-def calculate_profit_loss(input_file, date_str):
-    """指定されたファイルと日付で評価損益を計算する"""
+def calculate_profit_loss(input_file, date_str, evaluation_date_str=None):
+    """指定されたファイルと日付で評価損益を計算する
+    
+    Args:
+        input_file: 入力CSVファイルのパス
+        date_str: 売買シグナルの出た日（yyyymmdd形式）
+        evaluation_date_str: 評価日（yyyymmdd形式、Noneの場合は実行時点の最新値を使用）
+    """
     # CSVファイルを読み込む
     print(f"ファイル {os.path.basename(input_file)} を読み込んでいます...")
     df = pd.read_csv(input_file, encoding='utf-8')
@@ -34,8 +40,16 @@ def calculate_profit_loss(input_file, date_str):
     next_business_day = get_next_business_day(date_str)
     next_business_day_str = next_business_day.strftime('%Y-%m-%d')
     
-    # 現在の日付を取得
-    today = datetime.now().strftime('%Y-%m-%d')
+    # 評価終了日を設定
+    if evaluation_date_str:
+        # 評価日が指定されている場合、その翌日を終了日として設定（その日までのデータを含めるため）
+        evaluation_date = datetime.strptime(evaluation_date_str, '%Y%m%d')
+        end_date = (evaluation_date + timedelta(days=1)).strftime('%Y-%m-%d')
+        print(f"評価日 {evaluation_date_str} のClose値を使用して評価します")
+    else:
+        # 評価日が指定されていない場合は現在の日付
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        print(f"実行時点の最新Close値を使用して評価します")
     
     # 総銘柄数を取得して進捗表示に使用
     total_tickers = len(df)
@@ -58,7 +72,7 @@ def calculate_profit_loss(input_file, date_str):
         try:
             # yfinanceで株価データを取得
             print(f"  yfinanceから {ticker_symbol} の株価データを取得中...")
-            stock_data = yf.download(ticker_symbol, start=next_business_day_str, end=today, progress=False)
+            stock_data = yf.download(ticker_symbol, start=next_business_day_str, end=end_date, progress=False)
             
             if not stock_data.empty:
                 # 翌営業日のOpen値を取得
@@ -71,14 +85,35 @@ def calculate_profit_loss(input_file, date_str):
                         next_day_date = idx_date.strftime('%Y-%m-%d')
                         break
                 
-                # 最新のClose値を取得
-                latest_close = float(stock_data.iloc[-1]['Close'])  # 明示的に浮動小数点に変換
-                latest_date = stock_data.index[-1].strftime('%Y-%m-%d')
-                latest_date_yyyymmdd = stock_data.index[-1].strftime('%Y%m%d')
+                # 評価日または最新のClose値を取得
+                if evaluation_date_str:
+                    # 評価日のClose値を探す
+                    evaluation_close = None
+                    evaluation_date_actual = None
+                    
+                    # 評価日付から近い日を検索 (正確な日付が存在しない可能性があるため)
+                    target_date = datetime.strptime(evaluation_date_str, '%Y%m%d')
+                    
+                    # 指定された評価日以前の最新のデータを探す
+                    valid_dates = [d for d in stock_data.index if d <= target_date]
+                    
+                    if valid_dates:
+                        latest_valid_date = max(valid_dates)
+                        evaluation_close = float(stock_data.loc[latest_valid_date]['Close'])
+                        evaluation_date_actual = latest_valid_date.strftime('%Y%m%d')
+                        evaluation_date_display = latest_valid_date.strftime('%Y-%m-%d')
+                    else:
+                        print(f"  警告: {ticker}の{evaluation_date_str}以前のClose値が取得できませんでした")
+                        continue
+                else:
+                    # 最新のClose値を取得
+                    evaluation_close = float(stock_data.iloc[-1]['Close'])  # 明示的に浮動小数点に変換
+                    evaluation_date_actual = stock_data.index[-1].strftime('%Y%m%d')
+                    evaluation_date_display = stock_data.index[-1].strftime('%Y-%m-%d')
                 
                 # 評価額と評価損益率を計算
-                if next_day_open is not None:
-                    evaluation_amount = latest_close - next_day_open
+                if next_day_open is not None and evaluation_close is not None:
+                    evaluation_amount = evaluation_close - next_day_open
                     evaluation_rate = (evaluation_amount / next_day_open) * 100
                     
                     # 結果を追加
@@ -89,13 +124,17 @@ def calculate_profit_loss(input_file, date_str):
                         '評価損益率(%)': [round(evaluation_rate, 2)],
                         '売買の日': [date_str],
                         '翌営業日のOpen値': [round(next_day_open, 2)],
-                        '最新データの取得日': [latest_date_yyyymmdd],
-                        '最新のClose値': [round(latest_close, 2)]
+                        '評価日': [evaluation_date_actual],
+                        '評価日のClose値': [round(evaluation_close, 2)]
                     })], ignore_index=True)
                     
                     print(f"  評価額: {round(evaluation_amount, 2)}, 評価損益率: {round(evaluation_rate, 2)}%")
+                    print(f"  （{next_day_date}のOpen値: {round(next_day_open, 2)} → {evaluation_date_display}のClose値: {round(evaluation_close, 2)}）")
                 else:
-                    print(f"  警告: {ticker}の{next_business_day_str}のOpen値が取得できませんでした")
+                    if next_day_open is None:
+                        print(f"  警告: {ticker}の{next_business_day_str}のOpen値が取得できませんでした")
+                    if evaluation_close is None:
+                        print(f"  警告: {ticker}の評価日のClose値が取得できませんでした")
             else:
                 print(f"  警告: {ticker}の株価データが取得できませんでした")
         except Exception as e:
@@ -189,16 +228,28 @@ def main():
     print("評価損益計算処理を開始します...")
     
     # コマンドライン引数から日付を取得
-    if len(sys.argv) != 2:
-        print("使用方法: python script.py yyyymmdd")
+    if len(sys.argv) < 2 or len(sys.argv) > 3:
+        print("使用方法: python stock_evaluation.py yyyymmdd [評価日yyyymmdd]")
+        print("  yyyymmdd: 売買シグナルの出た日")
+        print("  評価日: 指定した場合、この日付時点の最新Close値で評価します。指定しない場合は実行時点の最新Close値を使用します。")
         sys.exit(1)
     
-    date_str = sys.argv[1]
-    print(f"指定された日付: {date_str}")
+    signal_date_str = sys.argv[1]
+    print(f"売買シグナルの出た日: {signal_date_str}")
+    
+    # 第2引数（評価日）があれば取得
+    evaluation_date_str = None
+    if len(sys.argv) == 3:
+        evaluation_date_str = sys.argv[2]
+        print(f"評価日: {evaluation_date_str}")
+    else:
+        print("評価日: 指定なし（実行時点の最新Close値を使用）")
     
     # 日付の形式をチェック
     try:
-        datetime.strptime(date_str, '%Y%m%d')
+        datetime.strptime(signal_date_str, '%Y%m%d')
+        if evaluation_date_str:
+            datetime.strptime(evaluation_date_str, '%Y%m%d')
     except ValueError:
         print("エラー: 日付はyyyymmdd形式で入力してください")
         sys.exit(1)
@@ -242,8 +293,8 @@ def main():
             print(f"\nファイル {file_idx}/{len(input_files)}: {base_filename} の処理を開始します")
             print(f"出力ファイル: {output_filename}")
             
-            # 評価損益を計算
-            result_df = calculate_profit_loss(input_file, date_str)
+            # 評価損益を計算（評価日パラメータを追加）
+            result_df = calculate_profit_loss(input_file, signal_date_str, evaluation_date_str)
             
             if not result_df.empty:
                 # データフレームの内容を確認
