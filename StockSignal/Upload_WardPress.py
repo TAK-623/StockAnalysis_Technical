@@ -295,6 +295,7 @@ def main():
         <li>前の営業日の短期移動平均と中期移動平均の差分よりも、最新の短期移動平均と中期移動平均の差分の方が大きい</li>
         <li>「短期移動平均 ＞ 中期移動平均 ＞ 長期移動平均」の関係が成立している</li>
         <li>最新の終値が短期移動平均よりも高い</li>
+        <li>出来高が100,000以上</li>
         </ol>
         [/st-mybox]
         [st-mybox title="強い売りトレンド抽出の条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
@@ -302,6 +303,7 @@ def main():
         <li>前の営業日の中期移動平均と短期移動平均の差分よりも、最新の中期移動平均と短期移動平均の差分の方が大きい</li>
         <li>「短期移動平均 ＜ 中期移動平均 ＜ 長期移動平均」の関係が成立している</li>
         <li>最新の終値が短期移動平均よりも安い</li>
+        <li>出来高が100,000以上</li>
         </ol>
         [/st-mybox]
         <h3>強い買いトレンド銘柄（{strong_buying_count}銘柄）</h3>

@@ -344,32 +344,34 @@ def extract_strong_buying_trend(is_test_mode: bool = False) -> bool:
         long_ma = f'MA{config.MA_PERIODS[2]}'   # 長期移動平均 (MA75)
         
         # 必要なカラムの存在確認
-        required_columns = ['Ticker', 'Company', 'Close', short_ma, mid_ma, long_ma]
+        required_columns = ['Ticker', 'Company', 'Close', 'Volume', short_ma, mid_ma, long_ma]
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             logger.error(f"必要なカラムがCSVファイルに見つかりません: {missing_columns}")
             return False
-        
-        # デバッグ出力: 各銘柄について条件2,3の結果を確認
+
         logger.info("各銘柄の条件判定を開始します")
-        
+
         # 全銘柄のティッカーリストを取得
         all_tickers = df['Ticker'].unique()
         logger.info(f"処理対象の全銘柄数: {len(all_tickers)}")
-        
+
         # 条件2: 短期MA > 中期MA > 長期MA の判定結果
         condition2 = (df[short_ma] > df[mid_ma]) & (df[mid_ma] > df[long_ma])
-        
+
         # 条件3: 最新のClose値が短期移動平均よりも高い の判定結果
         condition3 = df['Close'] > df[short_ma]
-        
-        # 各銘柄の条件2と3の組み合わせ結果
-        condition_results = condition2 & condition3
-        
-        # 条件2と3を満たす候補銘柄を抽出
+
+        # 条件4: 出来高が10万以上
+        condition4 = df['Volume'] >= 100000
+
+        # 各銘柄の条件2、3、4の組み合わせ結果
+        condition_results = condition2 & condition3 & condition4
+
+        # 条件を満たす候補銘柄を抽出
         potential_tickers = df[condition_results]['Ticker'].unique()
-        
-        logger.info(f"条件2と3を満たす候補銘柄: {len(potential_tickers)}社を検出しました")
+
+        logger.info(f"条件2,3,4を満たす候補銘柄: {len(potential_tickers)}社を検出しました")
         if len(potential_tickers) > 0:
             logger.info(f"候補銘柄: {potential_tickers}")
         
@@ -413,16 +415,18 @@ def extract_strong_buying_trend(is_test_mode: bool = False) -> bool:
                 if current_diff > previous_diff:
                     # 該当銘柄をリストに追加
                     current_row = df[df['Ticker'] == ticker].iloc[0]
+                    ma_diff_ratio = current_diff / current_row['Close'] * 100
                     strong_buying_tickers.append({
                         'Ticker': ticker,
                         'Company': current_row['Company'],
                         '終値（最新）': current_row['Close'],
+                        'Volume': current_row['Volume'],
                         short_ma: current_row[short_ma],
                         mid_ma: current_row[mid_ma],
-                        long_ma: current_row[long_ma],
-                        '移動平均差分（前営業日）': previous_diff,
-                        '移動平均差分（最新）': current_diff,
-                        '移動平均差分の変化量': current_diff - previous_diff
+                        'MA_Diff_Previous': previous_diff,
+                        'MA_Diff_Current': current_diff,
+                        'MA_Diff_Change': current_diff - previous_diff,
+                        'MA_Diff_Ratio': ma_diff_ratio
                     })
                     logger.info(f"銘柄 {ticker} はすべての条件を満たしています！")
                 else:
@@ -437,8 +441,26 @@ def extract_strong_buying_trend(is_test_mode: bool = False) -> bool:
         if strong_buying_tickers:
             strong_buying_df = pd.DataFrame(strong_buying_tickers)
             
-            # MA差分の変化率順にソート（変化が大きい順）
-            strong_buying_df = strong_buying_df.sort_values(by='移動平均差分の変化量', ascending=False)
+            # 列名を日本語に変更（より簡潔なラベルに）
+            strong_buying_df = strong_buying_df.rename(columns={
+                'Close': '終値（最新）',
+                'Volume': '出来高',
+                'MA_Diff_Previous': '移動平均差分（前営業日）',
+                'MA_Diff_Current': '移動平均差分（最新）',
+                'MA_Diff_Change': '変化量',
+                'MA_Diff_Ratio': '変化率'
+            })
+            
+            # MA差分の株価に対する割合でソート（比率が大きい順）
+            strong_buying_df = strong_buying_df.sort_values(by='変化率', ascending=False)
+            
+            # 列の順序を変更（long_maを含めない）
+            columns_order = [
+                'Ticker', 'Company', '終値（最新）', '変化率', 
+                '変化量', '移動平均差分（最新）', '移動平均差分（前営業日）',
+                short_ma, mid_ma, '出来高'
+            ]
+            strong_buying_df = strong_buying_df[columns_order]
             
             # CSVファイルに出力
             output_file = os.path.join(output_dir, "strong_buying_trend.csv")
@@ -449,8 +471,11 @@ def extract_strong_buying_trend(is_test_mode: bool = False) -> bool:
             logger.info("条件を満たす強気トレンド銘柄は見つかりませんでした")
             
             # 空のデータフレームを作成して出力
-            empty_df = pd.DataFrame(columns=['Ticker', 'Company', '終値（最新）', short_ma, mid_ma, long_ma, 
-                                             '移動平均差分（前営業日）', '移動平均差分（最新）', '移動平均差分の変化量'])
+            empty_df = pd.DataFrame(columns=[
+                'Ticker', 'Company', '終値（最新）', '変化率',
+                '変化量', '移動平均差分（最新）', '移動平均差分（前営業日）',
+                short_ma, mid_ma, '出来高'
+            ])
             output_file = os.path.join(output_dir, "strong_buying_trend.csv")
             empty_df.to_csv(output_file, index=False)
             logger.info(f"空の強気トレンドファイルを {output_file} に出力しました")
@@ -519,31 +544,34 @@ def extract_strong_selling_trend(is_test_mode: bool = False) -> bool:
         long_ma = f'MA{config.MA_PERIODS[2]}'   # 長期移動平均 (MA75)
         
         # 必要なカラムの存在確認
-        required_columns = ['Ticker', 'Company', 'Close', short_ma, mid_ma, long_ma]
+        required_columns = ['Ticker', 'Company', 'Close', 'Volume', short_ma, mid_ma, long_ma]
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             logger.error(f"必要なカラムがCSVファイルに見つかりません: {missing_columns}")
             return False
-        
+
         logger.info("各銘柄の条件判定を開始します")
-        
+
         # 全銘柄のティッカーリストを取得
         all_tickers = df['Ticker'].unique()
         logger.info(f"処理対象の全銘柄数: {len(all_tickers)}")
-        
-        # 条件2: 短期MA < 中期MA < 長期MA の判定結果（買いの条件を反転）
+
+        # 条件2: 短期MA < 中期MA < 長期MA の判定結果
         condition2 = (df[short_ma] < df[mid_ma]) & (df[mid_ma] < df[long_ma])
-        
-        # 条件3: 最新のClose値が短期移動平均よりも低い の判定結果（買いの条件を反転）
+
+        # 条件3: 最新のClose値が短期移動平均よりも低い の判定結果
         condition3 = df['Close'] < df[short_ma]
-        
-        # 各銘柄の条件2と3の組み合わせ結果
-        condition_results = condition2 & condition3
-        
-        # 条件2と3を満たす候補銘柄を抽出
+
+        # 条件4: 出来高が10万以上
+        condition4 = df['Volume'] >= 100000
+
+        # 各銘柄の条件2、3、4の組み合わせ結果
+        condition_results = condition2 & condition3 & condition4
+
+        # 条件を満たす候補銘柄を抽出
         potential_tickers = df[condition_results]['Ticker'].unique()
-        
-        logger.info(f"条件2と3を満たす売りトレンド候補銘柄: {len(potential_tickers)}社を検出しました")
+
+        logger.info(f"条件2,3,4を満たす売りトレンド候補銘柄: {len(potential_tickers)}社を検出しました")
         if len(potential_tickers) > 0:
             logger.info(f"候補銘柄: {potential_tickers}")
         
@@ -589,16 +617,18 @@ def extract_strong_selling_trend(is_test_mode: bool = False) -> bool:
                 if current_diff > previous_diff:
                     # 該当銘柄をリストに追加
                     current_row = df[df['Ticker'] == ticker].iloc[0]
+                    ma_diff_ratio = current_diff / current_row['Close'] * 100
                     strong_selling_tickers.append({
                         'Ticker': ticker,
                         'Company': current_row['Company'],
                         '終値（最新）': current_row['Close'],
+                        'Volume': current_row['Volume'],
                         short_ma: current_row[short_ma],
                         mid_ma: current_row[mid_ma],
-                        long_ma: current_row[long_ma],
-                        '移動平均差分（前営業日）': previous_diff,
-                        '移動平均差分（最新）': current_diff,
-                        '移動平均差分の変化量': current_diff - previous_diff
+                        'MA_Diff_Previous': previous_diff,
+                        'MA_Diff_Current': current_diff,
+                        'MA_Diff_Change': current_diff - previous_diff,
+                        'MA_Diff_Ratio': ma_diff_ratio
                     })
                     logger.info(f"銘柄 {ticker} はすべての売りトレンド条件を満たしています！")
                 else:
@@ -612,8 +642,26 @@ def extract_strong_selling_trend(is_test_mode: bool = False) -> bool:
         if strong_selling_tickers:
             strong_selling_df = pd.DataFrame(strong_selling_tickers)
             
-            # MA差分の変化率順にソート（変化が大きい順）
-            strong_selling_df = strong_selling_df.sort_values(by='移動平均差分の変化量', ascending=False)
+            # 列名を日本語に変更（より簡潔なラベルに）
+            strong_selling_df = strong_selling_df.rename(columns={
+                'Close': '終値（最新）',
+                'Volume': '出来高',
+                'MA_Diff_Previous': '移動平均差分（前営業日）',
+                'MA_Diff_Current': '移動平均差分（最新）',
+                'MA_Diff_Change': '変化量',
+                'MA_Diff_Ratio': '変化率'
+            })
+            
+            # MA差分の株価に対する割合でソート（比率が大きい順）
+            strong_selling_df = strong_selling_df.sort_values(by='変化率', ascending=False)
+            
+            # 列の順序を変更（long_maを含めない）
+            columns_order = [
+                'Ticker', 'Company', '終値（最新）', '変化率', 
+                '変化量', '移動平均差分（最新）', '移動平均差分（前営業日）',
+                short_ma, mid_ma, '出来高'
+            ]
+            strong_selling_df = strong_selling_df[columns_order]
             
             # CSVファイルに出力
             output_file = os.path.join(output_dir, "strong_selling_trend.csv")
@@ -624,8 +672,11 @@ def extract_strong_selling_trend(is_test_mode: bool = False) -> bool:
             logger.info("条件を満たす強気売りトレンド銘柄は見つかりませんでした")
             
             # 空のデータフレームを作成して出力
-            empty_df = pd.DataFrame(columns=['Ticker', 'Company', '終値（最新）', short_ma, mid_ma, long_ma, 
-                                             '移動平均差分（前営業日）', '移動平均差分（最新）', '移動平均差分の変化量'])
+            empty_df = pd.DataFrame(columns=[
+                'Ticker', 'Company', '終値（最新）', '変化率',
+                '変化量', '移動平均差分（最新）', '移動平均差分（前営業日）',
+                short_ma, mid_ma, '出来高'
+            ])
             output_file = os.path.join(output_dir, "strong_selling_trend.csv")
             empty_df.to_csv(output_file, index=False)
             logger.info(f"空の強気売りトレンドファイルを {output_file} に出力しました")
