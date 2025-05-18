@@ -145,8 +145,8 @@ def main():
     macd_rsi_rci_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_buy.csv"   # 買いシグナルCSV
     macd_rsi_rci_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_sell.csv" # 売りシグナルCSV
     range_break_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\Range_Brake.csv" # レンジブレイク銘柄CSV
-    strong_buying_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_buying_trend.csv", # 強い買いトレンド銘柄抽出
-    strong_selling_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_selling_trend.csv", # 強い売りトレンド銘柄抽出
+    strong_buying_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_buying_trend.csv" # 強い買いトレンド銘柄抽出
+    strong_selling_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_selling_trend.csv" # 強い売りトレンド銘柄抽出
     
     # 各CSVファイルを読み込んで、銘柄コード(Ticker)列で昇順ソートして再保存
     # 表示時に銘柄コードでソートされた状態にするため
