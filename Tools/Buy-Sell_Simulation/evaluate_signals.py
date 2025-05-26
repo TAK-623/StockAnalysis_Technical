@@ -160,6 +160,16 @@ def generate_summary(result_df, input_filename, output_dir):
             signal_type = match.group(2).lower()  # buy または sell
             summary_filename = f"summary_{indicator_type}_{signal_type}.csv"
             is_sell_signal = signal_type == 'sell'
+    elif re.search(r'buying', basename_lower):
+        # ファイル名に "buying" が含まれる場合は買いシグナル
+        file_base = os.path.splitext(basename)[0]
+        summary_filename = f"summary_{file_base}.csv"
+        is_sell_signal = False
+    elif re.search(r'selling', basename_lower):
+        # ファイル名に "selling" が含まれる場合は売りシグナル
+        file_base = os.path.splitext(basename)[0]
+        summary_filename = f"summary_{file_base}.csv"
+        is_sell_signal = True
     elif re.search(r'range_break\.csv', basename_lower) or re.search(r'range_brake\.csv', basename_lower):
         # "range_break.csv" または "Range_Brake.csv" パターン
         summary_filename = "summary_range_break.csv"
