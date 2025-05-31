@@ -53,7 +53,7 @@ def main():
         
         # 株価データの取得
         # configモジュールから設定値（バッチサイズ、期間など）を取得して実行
-        # stock_data = fetch_stock_data(tickers, is_test_mode=is_test_mode)
+        stock_data = fetch_stock_data(tickers, is_test_mode=is_test_mode)
         
         # テクニカル指標の計算処理を開始
         logger.info("テクニカル指標の計算を開始します...")
