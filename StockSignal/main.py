@@ -17,6 +17,7 @@ import config  # 設定値を管理するモジュール
 from data_loader import setup_logger, load_company_list  # ロガー設定と企業リスト読み込み関数
 from stock_fetcher import fetch_stock_data  # 株価データを取得する関数
 from technical_indicators import calculate_signals  # テクニカル指標を計算する関数
+from technical_indicators import extract_BB_MACD_signals, get_BB_MACD_signal_summary
 from extract_signals import extract_signals, extract_strong_buying_trend, extract_strong_selling_trend  # 売買シグナルとトレンド銘柄を抽出する関数
 from range_breakout import identify_range_breakouts  # レンジブレイク銘柄抽出関数
 
@@ -52,7 +53,7 @@ def main():
         
         # 株価データの取得
         # configモジュールから設定値（バッチサイズ、期間など）を取得して実行
-        stock_data = fetch_stock_data(tickers, is_test_mode=is_test_mode)
+        # stock_data = fetch_stock_data(tickers, is_test_mode=is_test_mode)
         
         # テクニカル指標の計算処理を開始
         logger.info("テクニカル指標の計算を開始します...")
@@ -102,6 +103,19 @@ def main():
                 logger.info("強気売りトレンド銘柄の抽出が完了しました。")
             else:
                 logger.error("強気売りトレンド銘柄の抽出中にエラーが発生しました。")
+            
+            # BB-MACDシグナル抽出処理を実行（extract_signals.pyと同じ場所に出力）
+            logger.info("BB-MACDシグナル銘柄の抽出を開始します...")
+            bb_macd_results = extract_BB_MACD_signals(is_test_mode)
+
+            # BB-MACDシグナル抽出の結果をログに記録
+            if bb_macd_results:
+                logger.info("BB-MACDシグナル銘柄の抽出が完了しました。")
+                
+                # サマリー統計の取得と表示
+                # summary = get_BB_MACD_signal_summary(is_test_mode)
+            else:
+                logger.error("BB-MACDシグナル銘柄の抽出中にエラーが発生しました。")
     
         except Exception as e:
             # テクニカル指標計算中のエラーハンドリング

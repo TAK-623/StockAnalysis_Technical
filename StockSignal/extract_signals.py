@@ -15,7 +15,7 @@ def extract_signals(is_test_mode: bool = False) -> bool:
     
     このテクニカル指標分析結果ファイルから、「Buy（買い）」と「Sell（売り）」のシグナルが
     出ている銘柄をそれぞれ抽出し、個別のCSVファイルとして保存します。
-    MACD-RSIとMACD-RCIの両方のシグナルを抽出します。
+    MACD-RSI、MACD-RCI、BB-MACDの各シグナルを抽出します。
     また、両方のシグナルが一致している銘柄も別途抽出します。
     テストモードでは、テスト用ディレクトリのデータを使用します。
     
@@ -40,7 +40,7 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         # テストモードと通常モードで異なるディレクトリを使用
         if is_test_mode:
             # テストモード: テスト用ディレクトリ内のTechnicalSignalフォルダを使用
-            input_dir = os.path.join(config.TEST_DIR, "TechnicalSignal")
+            input_dir = os.path.join(config.TEST_DIR, "StockSignal", "TechnicalSignal")
         else:
             # 通常モード: 本番用ディレクトリ内のTechnicalSignalフォルダを使用
             input_dir = os.path.join(config.BASE_DIR, "StockSignal", "TechnicalSignal")
@@ -82,8 +82,7 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         
         # 必要なカラムの存在確認
         # データフレームに必要なカラムが含まれているか検証
-        # 新たに High と Low を必要なカラムに追加（フィルタリングに使用するため）
-        required_columns = ['Ticker', 'Company', 'MACD-RSI', 'MACD-RCI', 'Close', 'High', 'Low', 'MACD', rsi_long_col, rci_long_col]
+        required_columns = ['Ticker', 'Company', 'MACD-RSI', 'MACD-RCI', 'BB-MACD', 'Close', 'High', 'Low', 'MACD', 'BB_Middle', rsi_long_col, rci_long_col]
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             # 必要なカラムが見つからない場合はエラーログを出力して処理を中断
@@ -209,6 +208,69 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         # 何件のシグナルが検出され、どのファイルに出力されたかを記録
         logger.info(f"MACD-RCI Buyシグナル（Close > Midpoint条件付き）: {len(macd_rci_buy_signals)}件を {macd_rci_buy_output_file} に出力しました")
         logger.info(f"MACD-RCI Sellシグナル（Close < Midpoint条件付き）: {len(macd_rci_sell_signals)}件を {macd_rci_sell_output_file} に出力しました")
+        
+        # === BB-MACD シグナル処理 ===
+        # Buyシグナルの抽出処理
+        # 1. BB-MACDカラムが'Buy'のレコードのみを抽出
+        # 2. 追加条件：終値が高値と安値の中間よりも上にある（上髭が短い銘柄）
+        # 3. 必要なカラム（銘柄コード、会社名、終値、MACD、BB_Middle）のみを選択
+        bb_macd_buy_signals = df[(df['BB-MACD'] == 'Buy') & (df['Close'] > df['Midpoint'])]
+        bb_macd_buy_signals = bb_macd_buy_signals[['Ticker', 'Company', 'Close', 'MACD', 'BB_Middle']]
+        
+        # 数値データの小数点以下桁数を調整（小数点以下2桁に丸める）
+        bb_macd_buy_signals['MACD'] = bb_macd_buy_signals['MACD'].round(2)
+        bb_macd_buy_signals['BB_Middle'] = bb_macd_buy_signals['BB_Middle'].round(2)
+        
+        # 終値の表示形式を調整（小数点以下が0の場合は整数表示、それ以外は小数点以下1桁）
+        bb_macd_buy_signals['Close'] = bb_macd_buy_signals['Close'].apply(
+            lambda x: int(x) if x == int(x) else round(x, 1)
+        )
+        
+        # カラム名を日本語に変更（レポートの可読性向上のため）
+        bb_macd_buy_signals = bb_macd_buy_signals.rename(columns={
+            'Close': '終値',
+            'MACD': 'MACD',
+            'BB_Middle': '20SMA'
+        })
+        
+        # 買いシグナル出力ファイルのパスを設定
+        bb_macd_buy_output_file = os.path.join(output_dir, "macd_bb_signal_result_buy.csv")
+        
+        # Sellシグナルの抽出処理
+        # 1. BB-MACDカラムが'Sell'のレコードのみを抽出
+        # 2. 追加条件：終値が高値と安値の中間よりも下にある（下髭が短い銘柄）
+        # 3. 必要なカラム（銘柄コード、会社名、終値、MACD、BB_Middle）のみを選択
+        bb_macd_sell_signals = df[(df['BB-MACD'] == 'Sell') & (df['Close'] < df['Midpoint'])]
+        bb_macd_sell_signals = bb_macd_sell_signals[['Ticker', 'Company', 'Close', 'MACD', 'BB_Middle']]
+        
+        # 数値データの小数点以下桁数を調整
+        bb_macd_sell_signals['MACD'] = bb_macd_sell_signals['MACD'].round(2)
+        bb_macd_sell_signals['BB_Middle'] = bb_macd_sell_signals['BB_Middle'].round(2)
+        
+        # 終値の表示形式を調整（小数点以下が0の場合は整数表示、それ以外は小数点以下1桁）
+        bb_macd_sell_signals['Close'] = bb_macd_sell_signals['Close'].apply(
+            lambda x: int(x) if x == int(x) else round(x, 1)
+        )
+        
+        # カラム名を日本語に変更（レポートの可読性向上のため）
+        bb_macd_sell_signals = bb_macd_sell_signals.rename(columns={
+            'Close': '終値',
+            'MACD': 'MACD',
+            'BB_Middle': '20SMA'
+        })
+        
+        # 売りシグナル出力ファイルのパスを設定
+        bb_macd_sell_output_file = os.path.join(output_dir, "macd_bb_signal_result_sell.csv")
+        
+        # 結果をCSVファイルに出力
+        # index=False: インデックスは出力しない（必要な情報のみをクリーンに出力）
+        bb_macd_buy_signals.to_csv(bb_macd_buy_output_file, index=False)
+        bb_macd_sell_signals.to_csv(bb_macd_sell_output_file, index=False)
+        
+        # 処理結果のログ出力
+        # 何件のシグナルが検出され、どのファイルに出力されたかを記録
+        logger.info(f"BB-MACD Buyシグナル（Close > Midpoint条件付き）: {len(bb_macd_buy_signals)}件を {bb_macd_buy_output_file} に出力しました")
+        logger.info(f"BB-MACD Sellシグナル（Close < Midpoint条件付き）: {len(bb_macd_sell_signals)}件を {bb_macd_sell_output_file} に出力しました")
         
         # === 両シグナル一致（MACD-RSIとMACD-RCIが両方とも同じシグナル）を抽出 ===
         # 両方がBuyの銘柄を抽出

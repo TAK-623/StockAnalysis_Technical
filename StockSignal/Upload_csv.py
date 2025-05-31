@@ -235,6 +235,8 @@ def main():
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\Range_Brake.csv', # レンジブレイク銘柄抽出
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_buying_trend.csv', # 強い買いトレンド銘柄抽出
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_selling_trend.csv', # 強い売りトレンド銘柄抽出
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\bb_macd_buy_signals.csv', # BB-MACD買いシグナル
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\bb_macd_sell_signals.csv', # BB-MACD売りシグナル
     ]
     
     # 各ファイルについて処理：アップロード→スプレッドシート変換（ソートなし）

@@ -43,7 +43,9 @@
     │   │   ├── signal_result_buy.csv                   # 買いシグナル銘柄リスト WardPress・GoogleDriveにアップ
     │   │   ├── signal_result_sell.csv                  # 売りシグナル銘柄リスト WardPress・GoogleDriveにアップ
     │   │   ├── strong_buying_trend.csv                 # 強気買いトレンド銘柄リスト WardPress・GoogleDriveにアップ
-    │   │   └── strong_selling_trend.csv                # 強気売りトレンド銘柄リスト WardPress・GoogleDriveにアップ
+    │   │   ├── strong_selling_trend.csv                # 強気売りトレンド銘柄リスト WardPress・GoogleDriveにアップ
+    │   │   ├── bb_macd_buy_signals.csv                 # ボリンジャーバンドとMACDとの買いシグナル銘柄リスト
+    │   │   └── bb_macd_sell_signals.csv                # ボリンジャーバンドとMACDとの売りシグナル銘柄リスト
     │   │
     │   └── Test-BatchFiles/                            # テスト用の単体ファイル実行バッチ
     │       ├── single-test_run_Upload_csv.bat           # single-test_run_Upload_csv.pyの実行
@@ -153,7 +155,8 @@ run_stock_signal_test.bat
 2. **MACD** - 短期12日、長期26日、シグナル9日
 3. **RSI** - 短期9日、長期14日
 4. **RCI (Rank Correlation Index)** - 短期9日、長期26日
-5. **一目均衡表** - 転換線、基準線、先行スパンA/B、遅行線
+5. **ボリンジャーバンド** - ミドルバンド（移動平均線）の期間：20日、標準偏差の倍率：2倍
+6. **一目均衡表** - 転換線、基準線、先行スパンA/B、遅行線
 
 ### latest_signal.csvに出力されるテクニカル指標詳細
 
@@ -186,7 +189,24 @@ run_stock_signal_test.bat
    - **RCI_Long_Overbought**: RCI26が80以上の買われすぎ状態かどうか
    - **RCI_Long_Oversold**: RCI26が-80以下の売られすぎ状態かどうか
 
-5. **一目均衡表 (Ichimoku Kinko Hyo)**
+5. **ボリンジャーバンド**
+   - **BB_Upper**: アッパーバンド
+   - **BB_Middle**: ミドルバンド（20SMA）
+   - **BB_Lower**: ローワーバンド
+   - **BB_Width**: バンド幅
+   - **BB_PercentB**: %B指標（価格のバンド内位置）
+   - **BB_Above_Upper**: 価格がアッパーバンドより上
+   - **BB_Below_Lower**: 価格がローワーバンドより下
+   - **BB_In_Band**: 価格がバンド内
+   - **BB_Squeeze**: バンドスクイーズ検出
+   - **BB-Signal**: ボリンジャーバンドベースの売買シグナル
+   - **BB_Position**: 価格位置の文字列表現
+   - **BB_Middle_Deviation**: ミドルバンドとの乖離率
+   - **BB_Width_Change**: バンド幅の変化率
+   - **BB_Walk_Up**: 連続してアッパーバンド外にある状態
+   - **BB_Walk_Down**: 連続してローワーバンド外にある状態
+
+6. **一目均衡表 (Ichimoku Kinko Hyo)**
    - **Ichimoku_Tenkan**: 転換線
    - **Ichimoku_Kijun**: 基準線
    - **Ichimoku_SenkouA**: 先行スパンA
@@ -205,7 +225,7 @@ run_stock_signal_test.bat
    - **Ichimoku_JudgeDate**: 判定日付
    - **Ichimoku_SanYaku**: 三役好転または三役暗転の状態
 
-6. **基本価格データ**
+7. **基本価格データ**
    - **Open**: 始値
    - **High**: 高値
    - **Low**: 安値
@@ -214,7 +234,7 @@ run_stock_signal_test.bat
    - **Dividends**: 配当
    - **Stock Splits**: 株式分割
 
-7. **その他**
+8. **その他**
    - **Ticker**: 銘柄コード
    - **Company**: 会社名
    - **Capital Gains**: 評価益
@@ -273,6 +293,18 @@ run_stock_signal_test.bat
      - 「短期移動平均 ＜ 中期移動平均 ＜ 長期移動平均」の関係が成立している（下降トレンドの順序確認）
      - 最新のClose値が短期移動平均よりも低い（現在値がトレンドより弱い）
    - **出力ファイル**: `strong_selling_trend.csv`
+
+7. **BB-MACD シグナル**
+   - **Buy シグナル条件**:
+      - 終値が20SMA（BB_Middle）を上回る
+      - 終値が高値と安値の中間よりも上（上髭が短い銘柄抽出）
+      - 最新のMACDはMACDシグナルを上回っている
+      - 2営業日前のMACDはMACDシグナルを下回っている →1営業日内にMACDのゴールデンクロスが起きている
+   - **Sell シグナル条件**:
+      - 終値が20SMA（BB_Middle）を下回る
+      - 終値が高値と安値の中間よりも下（下髭が短い銘柄抽出）
+      - 最新のMACDはMACDシグナルを下回っている
+      - 2営業日前のMACDはMACDシグナルを上回っている →1営業日内にMACDのデッドクロスが起きている
 
 ### 追加の抽出条件
 
@@ -335,6 +367,8 @@ https://www.jpx.co.jp/markets/statistics-equities/misc/01.html
 1. 買いシグナル：`macd_rsi_signal_result_buy.csv`, `macd_rci_signal_result_buy.csv`
 2. 売りシグナル：`macd_rsi_signal_result_sell.csv`, `macd_rci_signal_result_sell.csv`
 3. レンジブレイク：`range_break.csv` または `Range_Brake.csv`
+4. 強いトレンド銘柄：`strong_buying_trend.csv`, `strong_selling_trend.csv`
+5. BB-MACD売買シグナル：`bb_macd_buy_signals.csv`, `bb_macd_sell_signals.csv`
 
 ### 出力ファイル
 

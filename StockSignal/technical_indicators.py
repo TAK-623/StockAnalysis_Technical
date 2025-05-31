@@ -147,6 +147,224 @@ def calculate_ma_deviation_and_change(df: pd.DataFrame) -> pd.DataFrame:
     
     return result
 
+def calculate_bollinger_bands(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    ボリンジャーバンドを計算します
+    
+    ボリンジャーバンドは価格の変動幅を統計的に表示するテクニカル指標です。
+    - ミドルバンド：指定期間の単純移動平均線（通常20日）
+    - アッパーバンド：ミドルバンド + （標準偏差 × 倍率）
+    - ローワーバンド：ミドルバンド - （標準偏差 × 倍率）
+    
+    価格がバンドの外側に出ることは統計的に稀であり、
+    トレンドの転換点や売買のタイミングを判断する指標として使用されます。
+    
+    Args:
+        df: 株価データ（少なくともCloseカラムが必要）
+        
+    Returns:
+        pd.DataFrame: ボリンジャーバンドを追加したデータフレーム
+    """
+    import config
+    
+    # 元のデータを変更しないようにコピーを作成
+    result = df.copy()
+    # 終値の配列を取得
+    close = df['Close'].values
+    
+    # TALibを使用してボリンジャーバンドを計算
+    # 戻り値: アッパーバンド、ミドルバンド、ローワーバンド
+    upper_band, middle_band, lower_band = talib.BBANDS(
+        close,
+        timeperiod=config.BOLLINGER_PERIOD,      # 期間（通常：20日）
+        nbdevup=config.BOLLINGER_STD_DEV,        # 上側の標準偏差倍率（通常：2）
+        nbdevdn=config.BOLLINGER_STD_DEV,        # 下側の標準偏差倍率（通常：2）
+        matype=0                                 # 移動平均の種類（0=SMA）
+    )
+    
+    # 計算結果をデータフレームに追加
+    result['BB_Upper'] = upper_band       # アッパーバンド
+    result['BB_Middle'] = middle_band     # ミドルバンド（20SMA）
+    result['BB_Lower'] = lower_band       # ローワーバンド
+    
+    # ボリンジャーバンドの幅を計算（アッパーバンド - ローワーバンド）
+    # バンドの幅はボラティリティの指標として使用される
+    result['BB_Width'] = upper_band - lower_band
+    
+    # ボリンジャーバンド%B を計算
+    # %B = (価格 - ローワーバンド) / (アッパーバンド - ローワーバンド)
+    # 0.5でミドルバンド、1.0でアッパーバンド、0.0でローワーバンドを示す
+    band_range = upper_band - lower_band
+    # ゼロ除算を防ぐため、バンド幅が0でない場合のみ計算
+    result['BB_PercentB'] = np.where(
+        band_range != 0,
+        (close - lower_band) / band_range,
+        np.nan
+    )
+    
+    # 価格とバンドの位置関係を判定
+    result['BB_Above_Upper'] = close > upper_band    # 価格がアッパーバンドより上
+    result['BB_Below_Lower'] = close < lower_band    # 価格がローワーバンドより下
+    result['BB_In_Band'] = (close >= lower_band) & (close <= upper_band)  # 価格がバンド内
+    
+    # ボリンジャーバンドスクイーズの検出
+    # スクイーズ：バンド幅が過去の平均より狭くなった状態（ボラティリティの低下）
+    # 過去20日のバンド幅の移動平均と比較
+    bb_width_ma = talib.SMA(result['BB_Width'].values, timeperiod=20)
+    result['BB_Squeeze'] = result['BB_Width'] < bb_width_ma * 0.8  # 80%以下でスクイーズと判定
+    
+    return result
+
+
+def calculate_trading_signals_bollinger(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    ボリンジャーバンドに基づく取引シグナル(Buy/Sell)を計算します
+    
+    条件：
+    Buy シグナル:
+    - 価格がローワーバンドを下回った後、ローワーバンドを上回る
+    - %Bが0.2以下から0.2を上回る（売られすぎからの回復）
+    
+    Sell シグナル:
+    - 価格がアッパーバンドを上回った後、アッパーバンドを下回る
+    - %Bが0.8以上から0.8を下回る（買われすぎからの調整）
+    
+    Args:
+        df: ボリンジャーバンドが計算済みのデータフレーム
+        
+    Returns:
+        pd.DataFrame: ボリンジャーバンドシグナルを追加したデータフレーム
+    """
+    # 元のデータフレームを変更しないようにコピーを作成
+    result = df.copy()
+    
+    # 必要な列が存在するか確認
+    required_columns = ['BB_Upper', 'BB_Lower', 'BB_PercentB', 'Close']
+    missing_columns = [col for col in required_columns if col not in result.columns]
+    
+    # 必要なカラムが一つでも欠けている場合は処理を中断
+    if missing_columns:
+        logger = logging.getLogger("StockSignal")
+        logger.warning(f"ボリンジャーバンドシグナル計算に必要なカラムがありません: {missing_columns}")
+        result['BB-Signal'] = ''
+        return result
+    
+    # シグナル列を初期化
+    result['BB-Signal'] = ''
+    
+    # データが2行以上ある場合のみシグナル計算を実行
+    if len(result) >= 2:
+        for i in range(1, len(result)):
+            # 前日と当日のデータを取得
+            prev_close = result.iloc[i-1]['Close']
+            curr_close = result.iloc[i]['Close']
+            prev_percent_b = result.iloc[i-1]['BB_PercentB']
+            curr_percent_b = result.iloc[i]['BB_PercentB']
+            upper_band = result.iloc[i]['BB_Upper']
+            lower_band = result.iloc[i]['BB_Lower']
+            
+            # NaN値のチェック
+            if pd.isna(prev_percent_b) or pd.isna(curr_percent_b):
+                continue
+            
+            # Buyシグナルの条件
+            # 1. %Bが0.2以下から0.2を上回る（売られすぎからの回復）
+            # 2. 価格がローワーバンドを下回った後、上回る
+            buy_condition_1 = prev_percent_b <= 0.2 and curr_percent_b > 0.2
+            buy_condition_2 = prev_close < lower_band and curr_close >= lower_band
+            
+            # Sellシグナルの条件
+            # 1. %Bが0.8以上から0.8を下回る（買われすぎからの調整）
+            # 2. 価格がアッパーバンドを上回った後、下回る
+            sell_condition_1 = prev_percent_b >= 0.8 and curr_percent_b < 0.8
+            sell_condition_2 = prev_close > upper_band and curr_close <= upper_band
+            
+            # シグナルの設定
+            if buy_condition_1 or buy_condition_2:
+                result.iloc[i, result.columns.get_indexer(['BB-Signal'])[0]] = 'Buy'
+            elif sell_condition_1 or sell_condition_2:
+                result.iloc[i, result.columns.get_indexer(['BB-Signal'])[0]] = 'Sell'
+    
+    return result
+
+
+def calculate_bollinger_band_position(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    ボリンジャーバンドにおける価格の位置関係をより詳細に分析します
+    
+    Args:
+        df: ボリンジャーバンドが計算済みのデータフレーム
+        
+    Returns:
+        pd.DataFrame: 詳細な位置関係分析を追加したデータフレーム
+    """
+    result = df.copy()
+    
+    # 必要な列が存在するか確認
+    required_columns = ['BB_Upper', 'BB_Middle', 'BB_Lower', 'Close']
+    missing_columns = [col for col in required_columns if col not in result.columns]
+    
+    if missing_columns:
+        logger = logging.getLogger("StockSignal")
+        logger.warning(f"ボリンジャーバンド位置分析に必要なカラムがありません: {missing_columns}")
+        return result
+    
+    # 価格のバンド内位置を文字列で表現
+    result['BB_Position'] = ''
+    
+    for i in range(len(result)):
+        close = result.iloc[i]['Close']
+        upper = result.iloc[i]['BB_Upper']
+        middle = result.iloc[i]['BB_Middle']
+        lower = result.iloc[i]['BB_Lower']
+        
+        # NaN値チェック
+        if pd.isna(close) or pd.isna(upper) or pd.isna(middle) or pd.isna(lower):
+            result.iloc[i, result.columns.get_indexer(['BB_Position'])[0]] = 'データ不足'
+            continue
+        
+        # 価格位置の判定
+        if close > upper:
+            result.iloc[i, result.columns.get_indexer(['BB_Position'])[0]] = 'アッパーバンド超え'
+        elif close > middle:
+            result.iloc[i, result.columns.get_indexer(['BB_Position'])[0]] = 'ミドル〜アッパー'
+        elif close > lower:
+            result.iloc[i, result.columns.get_indexer(['BB_Position'])[0]] = 'ロワー〜ミドル'
+        else:
+            result.iloc[i, result.columns.get_indexer(['BB_Position'])[0]] = 'ローワーバンド下'
+    
+    # ミドルバンド（20SMA）との乖離率を計算
+    result['BB_Middle_Deviation'] = ((result['Close'] - result['BB_Middle']) / result['BB_Middle']) * 100
+    
+    # バンド幅の前日比変化率を計算
+    result['BB_Width_Change'] = result['BB_Width'].pct_change() * 100
+    
+    # ボリンジャーバンドウォーク（連続してバンド外にある状態）の検出
+    result['BB_Walk_Up'] = False    # 連続してアッパーバンド外
+    result['BB_Walk_Down'] = False  # 連続してローワーバンド外
+    
+    # 連続判定のための処理
+    consecutive_up = 0
+    consecutive_down = 0
+    
+    for i in range(len(result)):
+        if result.iloc[i]['BB_Above_Upper']:
+            consecutive_up += 1
+            consecutive_down = 0
+        elif result.iloc[i]['BB_Below_Lower']:
+            consecutive_down += 1
+            consecutive_up = 0
+        else:
+            consecutive_up = 0
+            consecutive_down = 0
+        
+        # 2日以上連続でバンド外にある場合をウォークとして判定
+        if consecutive_up >= 2:
+            result.iloc[i, result.columns.get_indexer(['BB_Walk_Up'])[0]] = True
+        if consecutive_down >= 2:
+            result.iloc[i, result.columns.get_indexer(['BB_Walk_Down'])[0]] = True
+    
+    return result
 
 def calculate_macd(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -716,6 +934,229 @@ def calculate_trading_signals_MACD_RCI(df: pd.DataFrame) -> pd.DataFrame:
     
     return result
 
+def calculate_trading_signals_BB_MACD(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    ボリンジャーバンド（20SMA）とMACDを組み合わせた取引シグナル(Buy/Sell)を計算します
+    
+    買いシグナル条件：
+    - 終値が20SMA（BB_Middle）を上回る
+    - 最新のMACDはMACDシグナルを上回っている
+    - 2営業日前のMACDはMACDシグナルを下回っている
+    
+    売りシグナル条件：
+    - 終値が20SMA（BB_Middle）を下回る
+    - 最新のMACDはMACDシグナルを下回っている
+    - 2営業日前のMACDはMACDシグナルを上回っている
+    
+    Args:
+        df: ボリンジャーバンドとMACDが計算済みのデータフレーム
+        
+    Returns:
+        pd.DataFrame: BB-MACDシグナルを追加したデータフレーム
+    """
+    # ロガーを取得
+    logger = logging.getLogger("StockSignal")
+    
+    # 元のデータフレームを変更しないようにコピーを作成
+    result = df.copy()
+    
+    # 必要な列が存在するか確認
+    required_columns = ['Close', 'BB_Middle', 'MACD', 'MACD_Signal']
+    missing_columns = [col for col in required_columns if col not in result.columns]
+    
+    # 必要なカラムが一つでも欠けている場合は処理を中断
+    if missing_columns:
+        logger.warning(f"BB-MACDシグナル計算に必要なカラムがありません: {missing_columns}")
+        result['BB-MACD'] = ''
+        return result
+    
+    # シグナル列を初期化
+    result['BB-MACD'] = ''
+    
+    # データが3行以上ある場合のみシグナル計算を実行（2営業日前のデータが必要なため）
+    if len(result) < 3:
+        logger.warning("BB-MACDシグナル計算には少なくとも3日分のデータが必要です")
+        return result
+    
+    # 各行に対してシグナル判定を実行（i=2から開始：2営業日前のデータが必要）
+    for i in range(2, len(result)):
+        # 当日のデータを取得
+        curr_close = result.iloc[i]['Close']
+        curr_bb_middle = result.iloc[i]['BB_Middle']
+        curr_macd = result.iloc[i]['MACD']
+        curr_macd_signal = result.iloc[i]['MACD_Signal']
+        
+        # 2営業日前のデータを取得
+        macd_2days_ago = result.iloc[i-2]['MACD']
+        macd_signal_2days_ago = result.iloc[i-2]['MACD_Signal']
+        
+        # NaN値のチェック
+        if (pd.isna(curr_close) or pd.isna(curr_bb_middle) or 
+            pd.isna(curr_macd) or pd.isna(curr_macd_signal) or
+            pd.isna(macd_2days_ago) or pd.isna(macd_signal_2days_ago)):
+            continue
+        
+        # ボリンジャーバンド条件の判定
+        price_above_20sma = curr_close > curr_bb_middle  # 終値が20SMAを上回る
+        price_below_20sma = curr_close < curr_bb_middle  # 終値が20SMAを下回る
+        
+        # MACD条件の判定（クロスオーバーの検出）
+        macd_bullish_today = curr_macd > curr_macd_signal                # 当日MACDがシグナル上回る
+        macd_bearish_2days_ago = macd_2days_ago < macd_signal_2days_ago  # 2営業日前MACDがシグナル下回る
+        macd_bearish_today = curr_macd < curr_macd_signal                # 当日MACDがシグナル下回る
+        macd_bullish_2days_ago = macd_2days_ago > macd_signal_2days_ago  # 2営業日前MACDがシグナル上回る
+        
+        # MACDクロスオーバー条件
+        macd_bullish_crossover = macd_bullish_today and macd_bearish_2days_ago  # ゴールデンクロス
+        macd_bearish_crossover = macd_bearish_today and macd_bullish_2days_ago  # デッドクロス
+        
+        # 買いシグナルの総合判定
+        buy_condition = price_above_20sma and macd_bullish_crossover
+        
+        # 売りシグナルの総合判定
+        sell_condition = price_below_20sma and macd_bearish_crossover
+        
+        # シグナルの設定
+        if buy_condition:
+            result.iloc[i, result.columns.get_indexer(['BB-MACD'])[0]] = 'Buy'
+        elif sell_condition:
+            result.iloc[i, result.columns.get_indexer(['BB-MACD'])[0]] = 'Sell'
+    
+    return result
+
+
+def calculate_trading_signals_BB_MACD_detailed(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    ボリンジャーバンド（20SMA）とMACDを組み合わせた詳細な取引シグナルを計算します
+    
+    この関数は上記の基本シグナルに加えて、詳細な判定理由も記録します。
+    
+    Args:
+        df: ボリンジャーバンドとMACDが計算済みのデータフレーム
+        
+    Returns:
+        pd.DataFrame: 詳細なBB-MACDシグナル情報を追加したデータフレーム
+    """
+    # ロガーを取得
+    logger = logging.getLogger("StockSignal")
+    
+    # 元のデータフレームを変更しないようにコピーを作成
+    result = df.copy()
+    
+    # 必要な列が存在するか確認
+    required_columns = ['Close', 'BB_Middle', 'MACD', 'MACD_Signal']
+    missing_columns = [col for col in required_columns if col not in result.columns]
+    
+    if missing_columns:
+        logger.warning(f"BB-MACD詳細シグナル計算に必要なカラムがありません: {missing_columns}")
+        # 詳細情報用の列を初期化
+        result['BB-MACD_Detail'] = ''
+        result['BB_Condition'] = False
+        result['MACD_Condition'] = False
+        result['MACD_Signal_Day'] = ''
+        return result
+    
+    # 詳細情報用の列を初期化
+    result['BB-MACD_Detail'] = ''
+    result['BB_Condition'] = False       # ボリンジャーバンド条件満たすか
+    result['MACD_Condition'] = False     # MACD条件満たすか
+    result['MACD_Signal_Day'] = ''       # MACDシグナルが発生した日（当日/前日）
+    result['Price_20SMA_Diff'] = 0.0     # 価格と20SMAの差額
+    result['Price_20SMA_Diff_Pct'] = 0.0 # 価格と20SMAの差の割合
+    
+    # データが2行以上ある場合のみ計算実行
+    if len(result) < 2:
+        logger.warning("BB-MACD詳細シグナル計算には少なくとも2日分のデータが必要です")
+        return result
+    
+    # 各行に対して詳細分析を実行
+    for i in range(1, len(result)):
+        # 当日のデータを取得
+        curr_close = result.iloc[i]['Close']
+        curr_bb_middle = result.iloc[i]['BB_Middle']
+        curr_macd = result.iloc[i]['MACD']
+        curr_macd_signal = result.iloc[i]['MACD_Signal']
+        
+        # 前日のデータを取得
+        prev_macd = result.iloc[i-1]['MACD']
+        prev_macd_signal = result.iloc[i-1]['MACD_Signal']
+        
+        # NaN値のチェック
+        if (pd.isna(curr_close) or pd.isna(curr_bb_middle) or 
+            pd.isna(curr_macd) or pd.isna(curr_macd_signal) or
+            pd.isna(prev_macd) or pd.isna(prev_macd_signal)):
+            continue
+        
+        # 価格と20SMAの差を計算
+        price_diff = curr_close - curr_bb_middle
+        price_diff_pct = (price_diff / curr_bb_middle) * 100
+        
+        result.iloc[i, result.columns.get_indexer(['Price_20SMA_Diff'])[0]] = price_diff
+        result.iloc[i, result.columns.get_indexer(['Price_20SMA_Diff_Pct'])[0]] = price_diff_pct
+        
+        # ボリンジャーバンド条件の判定
+        bb_buy_condition = curr_close > curr_bb_middle
+        bb_sell_condition = curr_close < curr_bb_middle
+        
+        # MACD条件の判定
+        macd_bullish_today = curr_macd > curr_macd_signal
+        macd_bullish_yesterday = prev_macd > prev_macd_signal
+        macd_bearish_today = curr_macd < curr_macd_signal
+        macd_bearish_yesterday = prev_macd < prev_macd_signal
+        
+        # MACDシグナル発生日の特定
+        macd_signal_day = ''
+        macd_bullish_condition = False
+        macd_bearish_condition = False
+        
+        if macd_bullish_today and macd_bullish_yesterday:
+            macd_signal_day = '当日・前日両方'
+            macd_bullish_condition = True
+        elif macd_bullish_today:
+            macd_signal_day = '当日'
+            macd_bullish_condition = True
+        elif macd_bullish_yesterday:
+            macd_signal_day = '前日'
+            macd_bullish_condition = True
+        elif macd_bearish_today and macd_bearish_yesterday:
+            macd_signal_day = '当日・前日両方'
+            macd_bearish_condition = True
+        elif macd_bearish_today:
+            macd_signal_day = '当日'
+            macd_bearish_condition = True
+        elif macd_bearish_yesterday:
+            macd_signal_day = '前日'
+            macd_bearish_condition = True
+        
+        # 条件満了の記録
+        if bb_buy_condition:
+            result.iloc[i, result.columns.get_indexer(['BB_Condition'])[0]] = True
+        elif bb_sell_condition:
+            result.iloc[i, result.columns.get_indexer(['BB_Condition'])[0]] = True
+        
+        if macd_bullish_condition or macd_bearish_condition:
+            result.iloc[i, result.columns.get_indexer(['MACD_Condition'])[0]] = True
+            result.iloc[i, result.columns.get_indexer(['MACD_Signal_Day'])[0]] = macd_signal_day
+        
+        # 総合的な詳細シグナル判定
+        detail_text = ''
+        
+        if bb_buy_condition and macd_bullish_condition:
+            detail_text = f'Buy: 価格20SMA上回り({price_diff_pct:.2f}%) + MACD強気({macd_signal_day})'
+        elif bb_sell_condition and macd_bearish_condition:
+            detail_text = f'Sell: 価格20SMA下回り({price_diff_pct:.2f}%) + MACD弱気({macd_signal_day})'
+        elif bb_buy_condition:
+            detail_text = f'BB条件のみ: 価格20SMA上回り({price_diff_pct:.2f}%) - MACD条件不足'
+        elif bb_sell_condition:
+            detail_text = f'BB条件のみ: 価格20SMA下回り({price_diff_pct:.2f}%) - MACD条件不足'
+        elif macd_bullish_condition:
+            detail_text = f'MACD条件のみ: MACD強気({macd_signal_day}) - 価格20SMA下回り'
+        elif macd_bearish_condition:
+            detail_text = f'MACD条件のみ: MACD弱気({macd_signal_day}) - 価格20SMA上回り'
+        
+        result.iloc[i, result.columns.get_indexer(['BB-MACD_Detail'])[0]] = detail_text
+    
+    return result
 
 def calculate_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -745,6 +1186,12 @@ def calculate_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # RCIの計算
     result = calculate_rci(result)
     
+    # ボリンジャーバンドの計算
+    result = calculate_bollinger_bands(result)
+    
+    # ボリンジャーバンドの詳細位置分析
+    result = calculate_bollinger_band_position(result)
+    
     # 一目均衡表の計算
     result = calculate_ichimoku(result)
     
@@ -754,12 +1201,311 @@ def calculate_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # 新しい取引シグナルの計算 (MACD-RCI)
     result = calculate_trading_signals_MACD_RCI(result)
     
-    # 移動平均線乖離率に基づく取引シグナルの計算（新規追加）
+    # 移動平均線乖離率に基づく取引シグナルの計算
     result = calculate_trading_signals_MA_Deviation(result)
+    
+    # ボリンジャーバンドに基づく取引シグナルの計算
+    result = calculate_trading_signals_bollinger(result)
+    
+    # ボリンジャーバンド（20SMA）とMACDを組み合わせた取引シグナルの計算
+    result = calculate_trading_signals_BB_MACD(result)
+    
+    # ボリンジャーバンド（20SMA）とMACDの詳細な取引シグナル分析
+    result = calculate_trading_signals_BB_MACD_detailed(result)
     
     # すべての指標が計算された結果を返す
     return result
 
+def extract_BB_MACD_signals(is_test_mode: bool = False) -> Dict[str, List[Dict]]:
+    """
+    BB-MACDシグナルに基づいて買い・売り銘柄を抽出します
+    
+    Args:
+        is_test_mode: テストモードかどうか
+        
+    Returns:
+        Dict[str, List[Dict]]: 買い・売り銘柄のリストを含む辞書
+    """
+    import config
+    import os
+    
+    # ロガーを取得
+    logger = logging.getLogger("StockSignal")
+    
+    # テストモードに応じてディレクトリを設定（extract_signals.pyと同じ構造に変更）
+    if is_test_mode:
+        input_dir = os.path.join(config.TEST_DIR, "StockSignal", "TechnicalSignal")  # テクニカル指標入力ディレクトリ
+        output_dir = os.path.join(config.TEST_DIR, "Result")  # extract_signals.pyと同じ出力先
+    else:
+        input_dir = os.path.join(config.BASE_DIR, "StockSignal", "TechnicalSignal")       # テクニカル指標入力ディレクトリ  
+        output_dir = os.path.join(config.BASE_DIR, "StockSignal", "Result")  # extract_signals.pyと同じ出力先
+    
+    # 出力ディレクトリが存在しない場合は作成
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # 結果を格納する辞書
+    results = {
+        'buy_signals': [],
+        'sell_signals': []
+    }
+    
+    try:
+        # 最新シグナルファイルを読み込み
+        latest_signal_file = os.path.join(input_dir, config.LATEST_SIGNAL_FILE)
+        
+        if not os.path.exists(latest_signal_file):
+            logger.error(f"最新シグナルファイルが見つかりません: {latest_signal_file}")
+            return results
+        
+        # CSVファイルを読み込み
+        df = pd.read_csv(latest_signal_file, index_col=0, parse_dates=True)
+        
+        # 会社名マッピングを取得
+        company_map = get_company_name_map(is_test_mode)
+        
+        # 高値と安値の中間値（ミッドポイント）を計算
+        df['Midpoint'] = (df['High'] + df['Low']) / 2
+        
+        # BB-MACDシグナルに基づいて銘柄を抽出
+        buy_stocks = []
+        sell_stocks = []
+        
+        # 買いシグナルの抽出（Close > Midpoint条件付き）
+        bb_macd_buy_signals = df[(df['BB-MACD'] == 'Buy') & (df['Close'] > df['Midpoint'])]
+        
+        for index, row in bb_macd_buy_signals.iterrows():
+            ticker = row.get('Ticker', '')
+            company = row.get('Company', company_map.get(str(ticker), ''))
+            
+            # 基本的な株価情報のみを抽出（不要な列を除外）
+            close = row.get('Close', 0.0)
+            bb_middle = row.get('BB_Middle', 0.0)
+            macd = row.get('MACD', 0.0)
+            
+            stock_info = {
+                'Ticker': ticker,
+                'Company': company,
+                'Close': close,
+                'MACD': macd,
+                'BB_Middle_20SMA': bb_middle
+            }
+            buy_stocks.append(stock_info)
+        
+        # 売りシグナルの抽出（Close < Midpoint条件付き）
+        bb_macd_sell_signals = df[(df['BB-MACD'] == 'Sell') & (df['Close'] < df['Midpoint'])]
+        
+        for index, row in bb_macd_sell_signals.iterrows():
+            ticker = row.get('Ticker', '')
+            company = row.get('Company', company_map.get(str(ticker), ''))
+            
+            # 基本的な株価情報のみを抽出（不要な列を除外）
+            close = row.get('Close', 0.0)
+            bb_middle = row.get('BB_Middle', 0.0)
+            macd = row.get('MACD', 0.0)
+            
+            stock_info = {
+                'Ticker': ticker,
+                'Company': company,
+                'Close': close,
+                'MACD': macd,
+                'BB_Middle_20SMA': bb_middle
+            }
+            sell_stocks.append(stock_info)
+        
+        # 結果を辞書に格納
+        results['buy_signals'] = buy_stocks
+        results['sell_signals'] = sell_stocks
+        
+        # CSVファイルとして出力（日付なし、不要な列を除外）
+        # 買いシグナル銘柄をCSVに出力（該当銘柄がない場合も空ファイルを出力）
+        buy_output_file = os.path.join(output_dir, 'bb_macd_buy_signals.csv')
+        if buy_stocks:
+            buy_df = pd.DataFrame(buy_stocks)
+            
+            # 数値データの小数点以下桁数を調整
+            buy_df['MACD'] = buy_df['MACD'].round(2)
+            buy_df['BB_Middle_20SMA'] = buy_df['BB_Middle_20SMA'].round(2)
+            
+            # 終値の表示形式を調整（小数点以下が0の場合は整数表示、それ以外は小数点以下1桁）
+            buy_df['Close'] = buy_df['Close'].apply(
+                lambda x: int(x) if x == int(x) else round(x, 1)
+            )
+            
+            # カラム名を日本語に変更（20SMAに短縮）
+            buy_df = buy_df.rename(columns={
+                'Close': '終値',
+                'MACD': 'MACD',
+                'BB_Middle_20SMA': '20SMA'
+            })
+            
+            buy_df.to_csv(buy_output_file, index=False, encoding='utf-8-sig')
+            logger.info(f"BB-MACD買いシグナル銘柄 {len(buy_stocks)}社をCSVに出力しました: {buy_output_file}")
+        else:
+            # 該当銘柄がない場合は空のデータフレームを作成して出力
+            empty_buy_df = pd.DataFrame(columns=['Ticker', 'Company', '終値', 'MACD', '20SMA'])
+            empty_buy_df.to_csv(buy_output_file, index=False, encoding='utf-8-sig')
+            logger.info(f"BB-MACD買いシグナル銘柄 0社（空ファイル）をCSVに出力しました: {buy_output_file}")
+        
+        # 売りシグナル銘柄をCSVに出力
+        sell_output_file = os.path.join(output_dir, 'bb_macd_sell_signals.csv')
+        if sell_stocks:
+            sell_df = pd.DataFrame(sell_stocks)
+            
+            # 数値データの小数点以下桁数を調整
+            sell_df['MACD'] = sell_df['MACD'].round(2)
+            sell_df['BB_Middle_20SMA'] = sell_df['BB_Middle_20SMA'].round(2)
+            
+            # 終値の表示形式を調整（小数点以下が0の場合は整数表示、それ以外は小数点以下1桁）
+            sell_df['Close'] = sell_df['Close'].apply(
+                lambda x: int(x) if x == int(x) else round(x, 1)
+            )
+            
+            # カラム名を日本語に変更（20SMAに短縮）
+            sell_df = sell_df.rename(columns={
+                'Close': '終値',
+                'MACD': 'MACD',
+                'BB_Middle_20SMA': '20SMA'
+            })
+            
+            sell_df.to_csv(sell_output_file, index=False, encoding='utf-8-sig')
+            logger.info(f"BB-MACD売りシグナル銘柄 {len(sell_stocks)}社をCSVに出力しました: {sell_output_file}")
+        else:
+            # 該当銘柄がない場合は空のデータフレームを作成して出力
+            empty_sell_df = pd.DataFrame(columns=['Ticker', 'Company', '終値', 'MACD', '20SMA'])
+            empty_sell_df.to_csv(sell_output_file, index=False, encoding='utf-8-sig')
+            logger.info(f"BB-MACD売りシグナル銘柄 0社（空ファイル）をCSVに出力しました: {sell_output_file}")
+        
+        # サマリー情報をログに出力
+        logger.info(f"BB-MACDシグナル抽出結果:")
+        logger.info(f"  買いシグナル: {len(buy_stocks)}社")
+        logger.info(f"  売りシグナル: {len(sell_stocks)}社")
+        logger.info(f"  出力先ディレクトリ: {output_dir}")
+        
+        # 詳細情報をログに出力（最初の5社まで）
+        if buy_stocks:
+            logger.info("買いシグナル銘柄（上位5社）:")
+            for i, stock in enumerate(buy_stocks[:5]):
+                logger.info(f"  {i+1}. {stock['Ticker']} {stock['Company']} "
+                           f"(終値: {stock['Close']}, MACD: {stock['MACD']:.2f}, "
+                           f"20SMA: {stock['BB_Middle_20SMA']:.2f})")
+        
+        if sell_stocks:
+            logger.info("売りシグナル銘柄（上位5社）:")
+            for i, stock in enumerate(sell_stocks[:5]):
+                logger.info(f"  {i+1}. {stock['Ticker']} {stock['Company']} "
+                           f"(終値: {stock['Close']}, MACD: {stock['MACD']:.2f}, "
+                           f"20SMA: {stock['BB_Middle_20SMA']:.2f})")
+        
+    except Exception as e:
+        logger.error(f"BB-MACDシグナル抽出中にエラーが発生しました: {str(e)}")
+    
+    return results
+
+
+def get_BB_MACD_signal_summary(is_test_mode: bool = False) -> Dict:
+    """
+    BB-MACDシグナルのサマリー統計を取得します
+    
+    Args:
+        is_test_mode: テストモードかどうか
+        
+    Returns:
+        Dict: サマリー統計情報
+    """
+    import config
+    import os
+    
+    # ロガーを取得
+    logger = logging.getLogger("StockSignal")
+    
+    # テストモードに応じて入力ディレクトリを設定（config.pyの設定に従う）
+    if is_test_mode:
+        input_dir = config.TEST_TECHNICAL_DIR  # テクニカル指標入力ディレクトリ
+    else:
+        input_dir = config.TECHNICAL_DIR       # テクニカル指標入力ディレクトリ
+    
+    # サマリー統計を格納する辞書
+    summary = {
+        'total_stocks': 0,
+        'buy_signals': 0,
+        'sell_signals': 0,
+        'no_signal': 0,
+        'bb_condition_only': 0,
+        'macd_condition_only': 0,
+        'both_conditions': 0,
+        'buy_signal_rate': 0.0,
+        'sell_signal_rate': 0.0,
+        'signal_rate': 0.0
+    }
+    
+    try:
+        # 最新シグナルファイルを読み込み
+        latest_signal_file = os.path.join(input_dir, config.LATEST_SIGNAL_FILE)
+        
+        if not os.path.exists(latest_signal_file):
+            logger.error(f"最新シグナルファイルが見つかりません: {latest_signal_file}")
+            return summary
+        
+        # CSVファイルを読み込み
+        df = pd.read_csv(latest_signal_file, index_col=0, parse_dates=True)
+        
+        # 統計計算
+        total_stocks = len(df)
+        buy_signals = len(df[df['BB-MACD'] == 'Buy'])
+        sell_signals = len(df[df['BB-MACD'] == 'Sell'])
+        no_signal = total_stocks - buy_signals - sell_signals
+        
+        # 条件別の分析（詳細データがある場合）
+        bb_condition_only = 0
+        macd_condition_only = 0
+        both_conditions = 0
+        
+        if 'BB_Condition' in df.columns and 'MACD_Condition' in df.columns:
+            bb_only = df[(df['BB_Condition'] == True) & (df['MACD_Condition'] == False)]
+            macd_only = df[(df['BB_Condition'] == False) & (df['MACD_Condition'] == True)]
+            both = df[(df['BB_Condition'] == True) & (df['MACD_Condition'] == True)]
+            
+            bb_condition_only = len(bb_only)
+            macd_condition_only = len(macd_only)
+            both_conditions = len(both)
+        
+        # 割合の計算
+        buy_signal_rate = (buy_signals / total_stocks * 100) if total_stocks > 0 else 0
+        sell_signal_rate = (sell_signals / total_stocks * 100) if total_stocks > 0 else 0
+        signal_rate = ((buy_signals + sell_signals) / total_stocks * 100) if total_stocks > 0 else 0
+        
+        # サマリー辞書を更新
+        summary.update({
+            'total_stocks': total_stocks,
+            'buy_signals': buy_signals,
+            'sell_signals': sell_signals,
+            'no_signal': no_signal,
+            'bb_condition_only': bb_condition_only,
+            'macd_condition_only': macd_condition_only,
+            'both_conditions': both_conditions,
+            'buy_signal_rate': buy_signal_rate,
+            'sell_signal_rate': sell_signal_rate,
+            'signal_rate': signal_rate
+        })
+        
+        # サマリー情報をログに出力
+        logger.info("=== BB-MACDシグナル サマリー統計 ===")
+        logger.info(f"総銘柄数: {total_stocks}")
+        logger.info(f"買いシグナル: {buy_signals}社 ({buy_signal_rate:.1f}%)")
+        logger.info(f"売りシグナル: {sell_signals}社 ({sell_signal_rate:.1f}%)")
+        logger.info(f"シグナルなし: {no_signal}社 ({100-signal_rate:.1f}%)")
+        logger.info(f"全体シグナル発生率: {signal_rate:.1f}%")
+        
+        if bb_condition_only + macd_condition_only + both_conditions > 0:
+            logger.info("=== 条件別分析 ===")
+            logger.info(f"BB条件のみ満たす: {bb_condition_only}社")
+            logger.info(f"MACD条件のみ満たす: {macd_condition_only}社")
+            logger.info(f"両条件満たす（シグナル発生）: {both_conditions}社")
+        
+    except Exception as e:
+        logger.error(f"BB-MACDサマリー統計計算中にエラーが発生しました: {str(e)}")
+    
+    return summary
 
 def process_data_for_ticker(ticker: str, data_dir: str, output_dir: str) -> Tuple[bool, Optional[pd.DataFrame]]:
     """

@@ -147,10 +147,12 @@ def main():
     range_break_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\Range_Brake.csv" # レンジブレイク銘柄CSV
     strong_buying_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_buying_trend.csv" # 強い買いトレンド銘柄抽出
     strong_selling_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_selling_trend.csv" # 強い売りトレンド銘柄抽出
+    bb_macd_buy_signals_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\bb_macd_buy_signals.csv" # BB-MACD買いシグナル銘柄抽出
+    bb_macd_sell_signals_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\bb_macd_sell_signals.csv" # BB-MACD売りシグナル銘柄抽出
     
     # 各CSVファイルを読み込んで、銘柄コード(Ticker)列で昇順ソートして再保存
     # 表示時に銘柄コードでソートされた状態にするため
-    for file_path in [macd_rsi_signal_buy_csv_file_path, macd_rsi_signal_sell_csv_file_path, macd_rci_signal_buy_csv_file_path, macd_rci_signal_sell_csv_file_path, macd_rsi_rci_signal_buy_csv_file_path, macd_rsi_rci_signal_sell_csv_file_path, macd_rsi_rci_signal_sell_csv_file_path]:
+    for file_path in [macd_rsi_signal_buy_csv_file_path, macd_rsi_signal_sell_csv_file_path, macd_rci_signal_buy_csv_file_path, macd_rci_signal_sell_csv_file_path, macd_rsi_rci_signal_buy_csv_file_path, macd_rsi_rci_signal_sell_csv_file_path, macd_rsi_rci_signal_sell_csv_file_path, bb_macd_buy_signals_csv_file_path, bb_macd_sell_signals_csv_file_path]:
         df = pd.read_csv(file_path, encoding='utf-8')    # CSVファイルを読み込み
         df_sorted = df.sort_values(by='Ticker')          # Ticker列で昇順ソート
         df_sorted.to_csv(file_path, index=False, encoding='utf-8')  # ソート結果を上書き保存
@@ -165,6 +167,8 @@ def main():
     html_table_range_break, range_break_count = read_csv_to_html_table(range_break_csv_file_path) # レンジブレイク銘柄テーブル
     html_table_strong_buying, strong_buying_count = read_csv_to_html_table(strong_buying_csv_file_path) # 強い買いトレンド銘柄テーブル
     html_table_strong_selling, strong_selling_count = read_csv_to_html_table(strong_selling_csv_file_path) # 強い売りトレンド銘柄テーブル
+    html_table_bb_macd_buy, bb_macd_buy_count = read_csv_to_html_table(bb_macd_buy_signals_csv_file_path) # BB-MACD買いシグナル銘柄テーブル
+    html_table_bb_macd_sell, bb_macd_sell_count = read_csv_to_html_table(bb_macd_sell_signals_csv_file_path) # BB-MACD売りシグナル銘柄テーブル
     
     # 投稿のタイトルと内容を作成
     post_title = "売買シグナル_{current_date}".format(current_date=current_date)  # 投稿タイトル
@@ -283,6 +287,49 @@ def main():
         <div class="scroll-box">
         売りシグナルテーブル
         {html_table_macd_rsi_rci_sell}
+        </div>
+        </div>
+        </div>
+        <p><!-- /wp:st-blocks/st-slidebox --></p>
+        
+        <h2>MACD & ボリンジャーバンドによる売買シグナル</h2>
+        <p>MACDとボリンジャーバンドによるシグナルは下記の条件で導出しています。</p>
+        [st-mybox title="買いシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
+        <ol>
+        <li>終値が20SMA（BB_Middle）を上回る</li>
+        <li>終値が高値と安値の中間よりも上（上髭が短い）</li>
+        <li>直近1営業日内にMACDのゴールデンクロス発生</li>
+        </ol>
+        [/st-mybox]
+        [st-mybox title="売りシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
+        <ol>
+        <li>終値が20SMA（BB_Middle）を下回る</li>
+        <li>終値が高値と安値の中間よりも下（下髭が短い）</li>
+        <li>直近1営業日内にMACDのデッドクロス発生</li>
+        </ol>
+        [/st-mybox]
+        <p></p>
+        <h3>買いシグナル銘柄（{bb_macd_buy_count}銘柄）</h3>
+        <p><!-- wp:st-blocks/st-slidebox --></p>
+        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
+        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
+        <div class="st-slidebox" data-st-slidebox-content="">
+        <div class="scroll-box">
+        買いシグナルテーブル
+        {html_table_bb_macd_buy}
+        </div>
+        </div>
+        </div>
+        <p><!-- /wp:st-blocks/st-slidebox --></p>
+        
+        <h3>売りシグナル銘柄（{bb_macd_sell_count}銘柄）</h3>
+        <p><!-- wp:st-blocks/st-slidebox --></p>
+        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
+        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
+        <div class="st-slidebox" data-st-slidebox-content="">
+        <div class="scroll-box">
+        売りシグナルテーブル
+        {html_table_bb_macd_sell}
         </div>
         </div>
         </div>
