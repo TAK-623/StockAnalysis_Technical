@@ -237,6 +237,12 @@ def main():
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_selling_trend.csv', # 強い売りトレンド銘柄抽出
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\bb_macd_buy_signals.csv', # BB-MACD買いシグナル
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\bb_macd_sell_signals.csv', # BB-MACD売りシグナル
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\ichimoku_GC_under_cloud.csv', # 一目均衡表 雲の下でゴールデンクロス銘柄
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\ichimoku_GC_upper_cloud.csv', # 一目均衡表 雲の上でゴールデンクロス銘柄
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\ichimoku_DC_under_cloud.csv', # 一目均衡表 雲の下でデッドクロス銘柄
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\ichimoku_DC_upper_cloud.csv', # 一目均衡表 雲の上でデッドクロス銘柄
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\sanyaku_kouten.csv', # 一目均衡表 三役好転銘柄
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\sanyaku_anten.csv', # 一目均衡表 三役暗転銘柄
     ]
     
     # 各ファイルについて処理：アップロード→スプレッドシート変換（ソートなし）

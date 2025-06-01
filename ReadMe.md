@@ -45,11 +45,18 @@
     │   │   ├── strong_buying_trend.csv                 # 強気買いトレンド銘柄リスト WardPress・GoogleDriveにアップ
     │   │   ├── strong_selling_trend.csv                # 強気売りトレンド銘柄リスト WardPress・GoogleDriveにアップ
     │   │   ├── bb_macd_buy_signals.csv                 # ボリンジャーバンドとMACDとの買いシグナル銘柄リスト
-    │   │   └── bb_macd_sell_signals.csv                # ボリンジャーバンドとMACDとの売りシグナル銘柄リスト
+    │   │   ├── bb_macd_sell_signals.csv                # ボリンジャーバンドとMACDとの売りシグナル銘柄リスト
+    │   │   ├── ichimoku_DC_under_cloud.csv             # 雲の下で基準線・転換線のデッドクロスが起きた銘柄リスト
+    │   │   ├── ichimoku_DC_upper_cloud.csv             # 雲の上で基準線・転換線のデッドクロスが起きた銘柄リスト
+    │   │   ├── ichimoku_GC_under_cloud.csv             # 雲の下で基準線・転換線のゴールデンクロスが起きた銘柄リスト
+    │   │   ├── ichimoku_GC_upper_cloud.csv             # 雲の上で基準線・転換線のゴールデンクロスが起きた銘柄リスト
+    │   │   ├── sanyaku_anten.csv                       # 三役好転の状態の銘柄リスト
+    │   │   └── sanyaku_kouten.csv                      # 三役暗転の状態の銘柄リスト
     │   │
-    │   └── Test-BatchFiles/                            # テスト用の単体ファイル実行バッチ
-    │       ├── single-test_run_Upload_csv.bat           # single-test_run_Upload_csv.pyの実行
-    │       └── single-test_run_Upload_WardPress.bat     # single-test_run_Upload_WardPress.pyの実行
+    │   └── Test-BatchFiles/                                      # テスト用の単体ファイル実行バッチ
+    │       ├── single-test_run_Upload_csv.bat                    # single-test_run_Upload_csv.pyの実行
+    │       ├── single-test_run_Upload_WardPress.bat              # single-test_run_Upload_WardPress.pyの実行
+    │       └── single-test_run_Upload_WardPress_Ichimoku.bat     # ↑に一目均衡表情報を追加したバッチファイル
     │
     ├── VolumeAnalysis/                                 # 出来高移動平均の算出
     │   ├── main.py                                     # メイン実行スクリプト

@@ -7,6 +7,9 @@ echo main.pyの処理が完了しました。
 echo WordPressへのアップロードを開始します...
 python Upload_WardPress.py
 echo WordPressへのアップロードが完了しました。
+echo 一目均衡表情報のWordPressへのアップロードを開始します...
+python Upload_WardPress_Ichimoku.py
+echo 一目均衡表情報のWordPressへのアップロードが完了しました。
 echo CSVファイルのアップロードを開始します...
 python Upload_csv.py
 echo すべての処理が完了しました。

@@ -751,6 +751,538 @@ def extract_strong_selling_trend(is_test_mode: bool = False) -> bool:
         logger.error(traceback.format_exc())
         return False
 
+def extract_sanyaku_signals(is_test_mode: bool = False) -> bool:
+    """
+    latest_signal.csvから三役好転・三役暗転の銘柄を抽出してCSVファイルに出力します
+    
+    Args:
+        is_test_mode (bool): テストモードの場合はTrue、通常モードの場合はFalse
+        
+    Returns:
+        bool: 処理が成功した場合はTrue、エラーが発生した場合はFalse
+    """
+    import config  # 設定値モジュールをインポート
+    
+    # StockSignal名前付きロガーを取得
+    logger = logging.getLogger("StockSignal")
+    logger.info("三役好転・三役暗転銘柄の抽出を開始します")
+    logger.info("抽出条件:")
+    logger.info("- 三役好転: 価格が雲の上 + 遅行線が価格より上 + 転換線が基準線より上")
+    logger.info("- 三役暗転: 価格が雲の下 + 遅行線が価格より下 + 転換線が基準線より下")
+    logger.info("- 雲の上にある銘柄: 抵抗線の目安＝先行スパンA・B の低い方（雲の下限）")
+    logger.info("- 雲の下にある銘柄: 抵抗線の目安＝先行スパンA・B の高い方（雲の上限）")
+    
+    try:
+        # 入力ファイルのパスを設定
+        if is_test_mode:
+            input_dir = os.path.join(config.TEST_DIR, "StockSignal", "TechnicalSignal")
+        else:
+            input_dir = os.path.join(config.BASE_DIR, "StockSignal", "TechnicalSignal")
+        
+        input_file = os.path.join(input_dir, config.LATEST_SIGNAL_FILE)
+        
+        # 出力ディレクトリの設定
+        if is_test_mode:
+            output_dir = os.path.join(config.TEST_DIR, "Result")
+        else:
+            output_dir = os.path.join(config.BASE_DIR, "StockSignal", "Result")
+        
+        # 出力ディレクトリが存在しない場合は作成
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # 入力ファイルの存在確認
+        if not os.path.exists(input_file):
+            logger.error(f"ファイルが見つかりません: {input_file}")
+            return False
+        
+        # CSVの読み込み
+        logger.info(f"{input_file} を読み込みます")
+        df = pd.read_csv(input_file, index_col=0, parse_dates=True)
+        
+        # 必要なカラムの存在確認
+        required_columns = ['Ticker', 'Company', 'Close', 'SanYaku_Kouten', 'SanYaku_Anten', 
+                           'Ichimoku_Tenkan', 'Ichimoku_Kijun', 'Ichimoku_SenkouA', 'Ichimoku_SenkouB',
+                           'Ichimoku_Above_Cloud', 'Ichimoku_Below_Cloud',
+                           'Ichimoku_Chikou_Above_Price', 'Ichimoku_Chikou_Below_Price']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            logger.error(f"必要なカラムがCSVファイルに見つかりません: {missing_columns}")
+            return False
+        
+        # === 三役好転銘柄の抽出 ===
+        sanyaku_kouten_signals = df[df['SanYaku_Kouten'] == True]
+        sanyaku_kouten_signals = sanyaku_kouten_signals[['Ticker', 'Company', 'Close', 
+                                                        'Ichimoku_Tenkan', 'Ichimoku_Kijun', 
+                                                        'Ichimoku_SenkouA', 'Ichimoku_SenkouB',
+                                                        'Ichimoku_Above_Cloud', 'Ichimoku_Below_Cloud']].copy()
+        
+        # 雲の位置に基づいて抵抗線の目安を設定
+        # 雲の上：先行スパンの低い方（雲の下限が抵抗線）、雲の下：先行スパンの高い方（雲の上限が抵抗線）
+        sanyaku_kouten_signals['抵抗線の目安'] = sanyaku_kouten_signals.apply(
+            lambda row: min(row['Ichimoku_SenkouA'], row['Ichimoku_SenkouB']) if row['Ichimoku_Above_Cloud'] 
+            else max(row['Ichimoku_SenkouA'], row['Ichimoku_SenkouB']), axis=1
+        )
+        
+        # 不要な列を削除
+        sanyaku_kouten_signals = sanyaku_kouten_signals.drop(['Ichimoku_SenkouA', 'Ichimoku_SenkouB', 
+                                                             'Ichimoku_Above_Cloud', 'Ichimoku_Below_Cloud'], axis=1)
+        
+        # 数値データの小数点以下桁数を調整
+        sanyaku_kouten_signals['Ichimoku_Tenkan'] = sanyaku_kouten_signals['Ichimoku_Tenkan'].round(2)
+        sanyaku_kouten_signals['Ichimoku_Kijun'] = sanyaku_kouten_signals['Ichimoku_Kijun'].round(2)
+        sanyaku_kouten_signals['抵抗線の目安'] = sanyaku_kouten_signals['抵抗線の目安'].round(2)
+        
+        # 終値の表示形式を調整
+        sanyaku_kouten_signals['Close'] = sanyaku_kouten_signals['Close'].apply(
+            lambda x: int(x) if x == int(x) else round(x, 1)
+        )
+        
+        # カラム名を日本語に変更
+        sanyaku_kouten_signals = sanyaku_kouten_signals.rename(columns={
+            'Close': '終値',
+            'Ichimoku_Tenkan': '転換線',
+            'Ichimoku_Kijun': '基準線'
+        })
+        
+        # 三役好転出力ファイルのパスを設定
+        sanyaku_kouten_output_file = os.path.join(output_dir, "sanyaku_kouten.csv")
+        
+        # === 三役暗転銘柄の抽出 ===
+        sanyaku_anten_signals = df[df['SanYaku_Anten'] == True]
+        sanyaku_anten_signals = sanyaku_anten_signals[['Ticker', 'Company', 'Close', 
+                                                      'Ichimoku_Tenkan', 'Ichimoku_Kijun', 
+                                                      'Ichimoku_SenkouA', 'Ichimoku_SenkouB',
+                                                      'Ichimoku_Above_Cloud', 'Ichimoku_Below_Cloud']].copy()
+        
+        # 雲の位置に基づいて抵抗線の目安を設定
+        # 雲の上：先行スパンの低い方（雲の下限が抵抗線）、雲の下：先行スパンの高い方（雲の上限が抵抗線）
+        sanyaku_anten_signals['抵抗線の目安'] = sanyaku_anten_signals.apply(
+            lambda row: min(row['Ichimoku_SenkouA'], row['Ichimoku_SenkouB']) if row['Ichimoku_Above_Cloud'] 
+            else max(row['Ichimoku_SenkouA'], row['Ichimoku_SenkouB']), axis=1
+        )
+        
+        # 不要な列を削除
+        sanyaku_anten_signals = sanyaku_anten_signals.drop(['Ichimoku_SenkouA', 'Ichimoku_SenkouB',
+                                                           'Ichimoku_Above_Cloud', 'Ichimoku_Below_Cloud'], axis=1)
+        
+        # 数値データの小数点以下桁数を調整
+        sanyaku_anten_signals['Ichimoku_Tenkan'] = sanyaku_anten_signals['Ichimoku_Tenkan'].round(2)
+        sanyaku_anten_signals['Ichimoku_Kijun'] = sanyaku_anten_signals['Ichimoku_Kijun'].round(2)
+        sanyaku_anten_signals['抵抗線の目安'] = sanyaku_anten_signals['抵抗線の目安'].round(2)
+        
+        # 終値の表示形式を調整
+        sanyaku_anten_signals['Close'] = sanyaku_anten_signals['Close'].apply(
+            lambda x: int(x) if x == int(x) else round(x, 1)
+        )
+        
+        # カラム名を日本語に変更
+        sanyaku_anten_signals = sanyaku_anten_signals.rename(columns={
+            'Close': '終値',
+            'Ichimoku_Tenkan': '転換線',
+            'Ichimoku_Kijun': '基準線'
+        })
+        
+        # 三役暗転出力ファイルのパスを設定
+        sanyaku_anten_output_file = os.path.join(output_dir, "sanyaku_anten.csv")
+        
+        # 結果をCSVファイルに出力
+        if len(sanyaku_kouten_signals) > 0:
+            sanyaku_kouten_signals = format_sanyaku_output(sanyaku_kouten_signals)
+            sanyaku_kouten_signals.to_csv(sanyaku_kouten_output_file, index=False)
+            logger.info(f"三役好転銘柄: {len(sanyaku_kouten_signals)}件を {sanyaku_kouten_output_file} に出力しました")
+        else:
+            create_empty_sanyaku_file(sanyaku_kouten_output_file)
+            logger.info("三役好転銘柄: 0件（空ファイルを出力）")
+        
+        if len(sanyaku_anten_signals) > 0:
+            sanyaku_anten_signals = format_sanyaku_output(sanyaku_anten_signals)
+            sanyaku_anten_signals.to_csv(sanyaku_anten_output_file, index=False)
+            logger.info(f"三役暗転銘柄: {len(sanyaku_anten_signals)}件を {sanyaku_anten_output_file} に出力しました")
+        else:
+            create_empty_sanyaku_file(sanyaku_anten_output_file)
+            logger.info("三役暗転銘柄: 0件（空ファイルを出力）")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"三役好転・三役暗転銘柄抽出処理中にエラーが発生しました: {str(e)}")
+        return False
+
+def format_sanyaku_output(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    三役好転・三役暗転出力データの書式を整える
+    
+    Args:
+        df: 三役好転・三役暗転データのデータフレーム
+        
+    Returns:
+        pd.DataFrame: 書式を整えたデータフレーム
+    """
+    # 数値データの小数点以下桁数を調整
+    df['転換線'] = df['転換線'].round(2)
+    df['基準線'] = df['基準線'].round(2)
+    df['抵抗線の目安'] = df['抵抗線の目安'].round(2)
+    
+    # 終値の表示形式を調整
+    df['終値'] = df['終値'].apply(
+        lambda x: int(x) if x == int(x) else round(x, 1)
+    )
+    
+    # 列の順序を調整（三役好転・暗転では前日の値は不要）
+    columns_order = [
+        'Ticker', 'Company', '終値', '転換線', '基準線', '抵抗線の目安'
+    ]
+    
+    return df[columns_order]
+
+def create_empty_sanyaku_file(file_path: str):
+    """
+    空の三役好転・三役暗転ファイルを作成する
+    
+    Args:
+        file_path: 作成するファイルのパス
+    """
+    empty_df = pd.DataFrame(columns=[
+        'Ticker', 'Company', '終値', '転換線', '基準線', '抵抗線の目安'
+    ])
+    empty_df.to_csv(file_path, index=False)
+
+def extract_ichimoku_cross_signals(is_test_mode: bool = False) -> bool:
+    """
+    転換線・基準線のクロス銘柄を抽出してCSVファイルに出力します
+    
+    雲の上・下での転換線と基準線のゴールデンクロス・デッドクロスを検出し、
+    さらに遅行線の条件も同時に満たす銘柄のみを抽出します。
+    
+    抽出条件：
+    - ゴールデンクロス: 前営業日(転換線 <= 基準線) → 最新営業日(転換線 > 基準線) + 遅行線が価格より上
+    - デッドクロス: 前営業日(転換線 >= 基準線) → 最新営業日(転換線 < 基準線) + 遅行線が価格より下
+    
+    Args:
+        is_test_mode (bool): テストモードの場合はTrue、通常モードの場合はFalse
+        
+    Returns:
+        bool: 処理が成功した場合はTrue、エラーが発生した場合はFalse
+    """
+    import config  # 設定値モジュールをインポート
+    
+    # StockSignal名前付きロガーを取得
+    logger = logging.getLogger("StockSignal")
+    logger.info("一目均衡表転換線・基準線クロス銘柄の抽出を開始します")
+    logger.info("抽出条件:")
+    logger.info("- ゴールデンクロス: 転換線が基準線を下から上に抜ける + 遅行線が価格より上")
+    logger.info("- デッドクロス: 転換線が基準線を上から下に抜ける + 遅行線が価格より下")
+    logger.info("- 雲の上にある銘柄: 抵抗線の目安＝先行スパンA・B の低い方（雲の下限）")
+    logger.info("- 雲の下にある銘柄: 抵抗線の目安＝先行スパンA・B の高い方（雲の上限）")
+    logger.info("- 各条件に雲の上・下の状態を組み合わせて分類")
+    
+    try:
+        # 入力ファイルのパスを設定
+        if is_test_mode:
+            input_dir = os.path.join(config.TEST_DIR, "StockSignal", "TechnicalSignal")
+        else:
+            input_dir = os.path.join(config.BASE_DIR, "StockSignal", "TechnicalSignal")
+        
+        input_file = os.path.join(input_dir, config.LATEST_SIGNAL_FILE)
+        
+        # 出力ディレクトリの設定
+        if is_test_mode:
+            output_dir = os.path.join(config.TEST_DIR, "Result")
+        else:
+            output_dir = os.path.join(config.BASE_DIR, "StockSignal", "Result")
+        
+        # 出力ディレクトリが存在しない場合は作成
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # 入力ファイルの存在確認
+        if not os.path.exists(input_file):
+            logger.error(f"ファイルが見つかりません: {input_file}")
+            return False
+        
+        # CSVの読み込み
+        logger.info(f"{input_file} を読み込みます")
+        df = pd.read_csv(input_file, index_col=0, parse_dates=True)
+        
+        # 必要なカラムの存在確認
+        required_columns = ['Ticker', 'Company', 'Close', 'Ichimoku_Tenkan', 'Ichimoku_Kijun', 
+                           'Ichimoku_Above_Cloud', 'Ichimoku_Below_Cloud', 'Ichimoku_SenkouA', 'Ichimoku_SenkouB',
+                           'Ichimoku_Chikou_Above_Price', 'Ichimoku_Chikou_Below_Price']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            logger.error(f"必要なカラムがCSVファイルに見つかりません: {missing_columns}")
+            return False
+        
+        # 全銘柄のティッカーリストを取得
+        all_tickers = df['Ticker'].unique()
+        logger.info(f"処理対象の全銘柄数: {len(all_tickers)}")
+        
+        # 各種クロス信号を格納するリスト
+        gc_under_cloud_tickers = []    # 雲の下でのゴールデンクロス
+        gc_upper_cloud_tickers = []    # 雲の上でのゴールデンクロス
+        dc_upper_cloud_tickers = []    # 雲の上でのデッドクロス
+        dc_under_cloud_tickers = []    # 雲の下でのデッドクロス
+        
+        # 各銘柄について個別にクロス判定を実行
+        for ticker in all_tickers:
+            try:
+                # 個別銘柄のシグナルファイルを読み込む
+                ticker_signal_file = os.path.join(input_dir, f"{ticker}_signal.csv")
+                
+                # ファイルが存在しない場合はスキップ
+                if not os.path.exists(ticker_signal_file):
+                    logger.warning(f"銘柄 {ticker} のシグナルファイルが見つかりません")
+                    continue
+                
+                # シグナルファイルを読み込み
+                ticker_df = pd.read_csv(ticker_signal_file, index_col=0, parse_dates=True)
+                
+                # データが2行以上あることを確認（前日データが必要）
+                if len(ticker_df) < 2:
+                    logger.warning(f"銘柄 {ticker} のデータが不足しています (行数: {len(ticker_df)})")
+                    continue
+                
+                # 最新2日分のデータを取得
+                recent_data = ticker_df.tail(2)
+                
+                # 前日と当日の転換線・基準線データを取得
+                prev_tenkan = recent_data.iloc[0]['Ichimoku_Tenkan']
+                prev_kijun = recent_data.iloc[0]['Ichimoku_Kijun']
+                curr_tenkan = recent_data.iloc[1]['Ichimoku_Tenkan']
+                curr_kijun = recent_data.iloc[1]['Ichimoku_Kijun']
+                
+                # 雲の状態を取得
+                curr_above_cloud = recent_data.iloc[1]['Ichimoku_Above_Cloud']
+                curr_below_cloud = recent_data.iloc[1]['Ichimoku_Below_Cloud']
+                
+                # 遅行線の状態を取得
+                curr_chikou_above_price = recent_data.iloc[1]['Ichimoku_Chikou_Above_Price']
+                curr_chikou_below_price = recent_data.iloc[1]['Ichimoku_Chikou_Below_Price']
+                
+                # 先行スパンを取得
+                curr_senkou_a = recent_data.iloc[1]['Ichimoku_SenkouA']
+                curr_senkou_b = recent_data.iloc[1]['Ichimoku_SenkouB']
+                
+                # NaN値のチェック
+                if (pd.isna(prev_tenkan) or pd.isna(prev_kijun) or 
+                    pd.isna(curr_tenkan) or pd.isna(curr_kijun)):
+                    continue
+                
+                # ゴールデンクロスの判定（前日: 転換線 <= 基準線、当日: 転換線 > 基準線）
+                golden_cross = prev_tenkan <= prev_kijun and curr_tenkan > curr_kijun
+                
+                # デッドクロスの判定（前日: 転換線 >= 基準線、当日: 転換線 < 基準線）
+                dead_cross = prev_tenkan >= prev_kijun and curr_tenkan < curr_kijun
+                
+                # 最新データから必要な情報を取得
+                current_row = df[df['Ticker'] == ticker].iloc[0]
+                
+                # 基本的な株式情報
+                base_stock_info = {
+                    'Ticker': ticker,
+                    'Company': current_row['Company'],
+                    '終値': current_row['Close'],
+                    '転換線': curr_tenkan,
+                    '基準線': curr_kijun,
+                    '前日転換線': prev_tenkan,
+                    '前日基準線': prev_kijun
+                }
+                
+                # 抵抗線の目安を雲の位置に基づいて計算
+                # 雲の上：先行スパンの低い方（雲の下限が抵抗線）
+                # 雲の下：先行スパンの高い方（雲の上限が抵抗線）
+                # 雲の中：先行スパンの中間値
+                if curr_above_cloud:
+                    resistance_level = min(curr_senkou_a, curr_senkou_b) if not (pd.isna(curr_senkou_a) or pd.isna(curr_senkou_b)) else 0
+                elif curr_below_cloud:
+                    resistance_level = max(curr_senkou_a, curr_senkou_b) if not (pd.isna(curr_senkou_a) or pd.isna(curr_senkou_b)) else 0
+                else:
+                    # 雲の中の場合は中間値
+                    resistance_level = (curr_senkou_a + curr_senkou_b) / 2 if not (pd.isna(curr_senkou_a) or pd.isna(curr_senkou_b)) else 0
+                
+                # 各条件に応じて分類（遅行線の条件を追加）
+                if golden_cross and curr_below_cloud and curr_chikou_above_price:
+                    stock_info = base_stock_info.copy()
+                    stock_info['抵抗線の目安'] = resistance_level
+                    gc_under_cloud_tickers.append(stock_info)
+                    logger.info(f"銘柄 {ticker}: 雲の下でゴールデンクロス + 遅行線条件満足")
+                elif golden_cross and curr_above_cloud and curr_chikou_above_price:
+                    stock_info = base_stock_info.copy()
+                    stock_info['抵抗線の目安'] = resistance_level
+                    gc_upper_cloud_tickers.append(stock_info)
+                    logger.info(f"銘柄 {ticker}: 雲の上でゴールデンクロス + 遅行線条件満足")
+                elif dead_cross and curr_above_cloud and curr_chikou_below_price:
+                    stock_info = base_stock_info.copy()
+                    stock_info['抵抗線の目安'] = resistance_level
+                    dc_upper_cloud_tickers.append(stock_info)
+                    logger.info(f"銘柄 {ticker}: 雲の上でデッドクロス + 遅行線条件満足")
+                elif dead_cross and curr_below_cloud and curr_chikou_below_price:
+                    stock_info = base_stock_info.copy()
+                    stock_info['抵抗線の目安'] = resistance_level
+                    dc_under_cloud_tickers.append(stock_info)
+                    logger.info(f"銘柄 {ticker}: 雲の下でデッドクロス + 遅行線条件満足")
+                
+                # 条件を満たさなかった場合のログ出力（デバッグ用）
+                if golden_cross or dead_cross:
+                    if golden_cross and not curr_chikou_above_price:
+                        logger.debug(f"銘柄 {ticker}: ゴールデンクロスだが遅行線条件不足")
+                    elif dead_cross and not curr_chikou_below_price:
+                        logger.debug(f"銘柄 {ticker}: デッドクロスだが遅行線条件不足")
+                    
+            except Exception as e:
+                logger.error(f"銘柄 {ticker} の処理中にエラーが発生しました: {str(e)}")
+                continue
+        
+        # === 雲の下でのゴールデンクロス銘柄をCSVに出力 ===
+        if gc_under_cloud_tickers:
+            gc_under_cloud_df = pd.DataFrame(gc_under_cloud_tickers)
+            gc_under_cloud_df = format_ichimoku_output(gc_under_cloud_df)
+            
+            output_file = os.path.join(output_dir, "ichimoku_GC_under_cloud.csv")
+            gc_under_cloud_df.to_csv(output_file, index=False)
+            logger.info(f"雲の下ゴールデンクロス+遅行線条件満足銘柄: {len(gc_under_cloud_tickers)}件を {output_file} に出力しました")
+        else:
+            create_empty_ichimoku_file(os.path.join(output_dir, "ichimoku_GC_under_cloud.csv"))
+            logger.info("雲の下ゴールデンクロス+遅行線条件満足銘柄: 0件（空ファイルを出力）")
+        
+        # === 雲の上でのゴールデンクロス銘柄をCSVに出力 ===
+        if gc_upper_cloud_tickers:
+            gc_upper_cloud_df = pd.DataFrame(gc_upper_cloud_tickers)
+            gc_upper_cloud_df = format_ichimoku_output(gc_upper_cloud_df)
+            
+            output_file = os.path.join(output_dir, "ichimoku_GC_upper_cloud.csv")
+            gc_upper_cloud_df.to_csv(output_file, index=False)
+            logger.info(f"雲の上ゴールデンクロス+遅行線条件満足銘柄: {len(gc_upper_cloud_tickers)}件を {output_file} に出力しました")
+        else:
+            create_empty_ichimoku_file(os.path.join(output_dir, "ichimoku_GC_upper_cloud.csv"))
+            logger.info("雲の上ゴールデンクロス+遅行線条件満足銘柄: 0件（空ファイルを出力）")
+        
+        # === 雲の上でのデッドクロス銘柄をCSVに出力 ===
+        if dc_upper_cloud_tickers:
+            dc_upper_cloud_df = pd.DataFrame(dc_upper_cloud_tickers)
+            dc_upper_cloud_df = format_ichimoku_output(dc_upper_cloud_df)
+            
+            output_file = os.path.join(output_dir, "ichimoku_DC_upper_cloud.csv")
+            dc_upper_cloud_df.to_csv(output_file, index=False)
+            logger.info(f"雲の上デッドクロス+遅行線条件満足銘柄: {len(dc_upper_cloud_tickers)}件を {output_file} に出力しました")
+        else:
+            create_empty_ichimoku_file(os.path.join(output_dir, "ichimoku_DC_upper_cloud.csv"))
+            logger.info("雲の上デッドクロス+遅行線条件満足銘柄: 0件（空ファイルを出力）")
+        
+        # === 雲の下でのデッドクロス銘柄をCSVに出力 ===
+        if dc_under_cloud_tickers:
+            dc_under_cloud_df = pd.DataFrame(dc_under_cloud_tickers)
+            dc_under_cloud_df = format_ichimoku_output(dc_under_cloud_df)
+            
+            output_file = os.path.join(output_dir, "ichimoku_DC_under_cloud.csv")
+            dc_under_cloud_df.to_csv(output_file, index=False)
+            logger.info(f"雲の下デッドクロス+遅行線条件満足銘柄: {len(dc_under_cloud_tickers)}件を {output_file} に出力しました")
+        else:
+            create_empty_ichimoku_file(os.path.join(output_dir, "ichimoku_DC_under_cloud.csv"))
+            logger.info("雲の下デッドクロス+遅行線条件満足銘柄: 0件（空ファイルを出力）")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"一目均衡表クロス銘柄抽出処理中にエラーが発生しました: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return False
+
+def format_ichimoku_output(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    一目均衡表出力データの書式を整える
+    
+    Args:
+        df: 一目均衡表データのデータフレーム
+        
+    Returns:
+        pd.DataFrame: 書式を整えたデータフレーム
+    """
+    # 数値データの小数点以下桁数を調整
+    df['転換線'] = df['転換線'].round(2)
+    df['基準線'] = df['基準線'].round(2)
+    df['前日転換線'] = df['前日転換線'].round(2)
+    df['前日基準線'] = df['前日基準線'].round(2)
+    df['抵抗線の目安'] = df['抵抗線の目安'].round(2)
+    
+    # 終値の表示形式を調整
+    df['終値'] = df['終値'].apply(
+        lambda x: int(x) if x == int(x) else round(x, 1)
+    )
+    
+    # 列の順序を調整
+    columns_order = [
+        'Ticker', 'Company', '終値', '転換線', '基準線', 
+        '前日転換線', '前日基準線', '抵抗線の目安'
+    ]
+    
+    return df[columns_order]
+
+
+def create_empty_ichimoku_file(file_path: str):
+    """
+    空の一目均衡表ファイルを作成する
+    
+    Args:
+        file_path: 作成するファイルのパス
+    """
+    empty_df = pd.DataFrame(columns=[
+        'Ticker', 'Company', '終値', '転換線', '基準線', 
+        '前日転換線', '前日基準線', '抵抗線の目安'
+    ])
+    empty_df.to_csv(file_path, index=False)
+
+
+# メイン関数の更新版
+def extract_all_ichimoku_signals(is_test_mode: bool = False) -> bool:
+    """
+    すべてのシグナル抽出処理を実行します
+    
+    Args:
+        is_test_mode (bool): テストモードの場合はTrue、通常モードの場合はFalse
+        
+    Returns:
+        bool: すべての処理が成功した場合はTrue、エラーが発生した場合はFalse
+    """
+    import config
+    
+    # StockSignal名前付きロガーを取得
+    logger = logging.getLogger("StockSignal")
+    logger.info("すべてのシグナル抽出処理を開始します")
+    
+    try:
+        # 基本的なシグナル抽出
+        if not extract_signals(is_test_mode):
+            logger.error("基本シグナル抽出処理が失敗しました")
+            return False
+        
+        # 強気トレンド抽出
+        if not extract_strong_buying_trend(is_test_mode):
+            logger.error("強気トレンド抽出処理が失敗しました")
+            return False
+        
+        # 強気売りトレンド抽出
+        if not extract_strong_selling_trend(is_test_mode):
+            logger.error("強気売りトレンド抽出処理が失敗しました")
+            return False
+        
+        # 三役好転・三役暗転抽出
+        if not extract_sanyaku_signals(is_test_mode):
+            logger.error("三役好転・三役暗転抽出処理が失敗しました")
+            return False
+        
+        # 一目均衡表クロス抽出
+        if not extract_ichimoku_cross_signals(is_test_mode):
+            logger.error("一目均衡表クロス抽出処理が失敗しました")
+            return False
+        
+        logger.info("すべてのシグナル抽出処理が正常に完了しました")
+        return True
+        
+    except Exception as e:
+        logger.error(f"シグナル抽出処理中にエラーが発生しました: {str(e)}")
+        return False
+
 # このファイルが直接実行された場合（モジュールとしてインポートされた場合は実行されない）
 if __name__ == "__main__":
     import sys
