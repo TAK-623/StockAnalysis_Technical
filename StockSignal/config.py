@@ -21,7 +21,7 @@ TEST_DIR = os.path.join(BASE_DIR, "StockSignal", "Test")
 # =====================================================================
 
 # 通常処理用企業リストファイル - 分析対象の企業コード一覧CSVファイル
-COMPANY_LIST_FILE = "company_list_20250228.csv"
+COMPANY_LIST_FILE = "company_list_20250426.csv"
 
 # テスト用企業リストファイル - テストモード時の少数サンプル企業コード一覧
 COMPANY_LIST_TEST_FILE = "company_list_20250228_test.csv"
