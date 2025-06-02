@@ -1260,8 +1260,8 @@ def extract_BB_MACD_signals(is_test_mode: bool = False) -> Dict[str, List[Dict]]
         # CSVファイルを読み込み
         df = pd.read_csv(latest_signal_file, index_col=0, parse_dates=True)
         
-        # 会社名マッピングを取得
-        company_map = get_company_name_map(is_test_mode)
+        # 会社名・テーママッピングを取得
+        company_info_map = get_company_info_map(is_test_mode)
         
         # 高値と安値の中間値（ミッドポイント）を計算
         df['Midpoint'] = (df['High'] + df['Low']) / 2
@@ -1275,7 +1275,9 @@ def extract_BB_MACD_signals(is_test_mode: bool = False) -> Dict[str, List[Dict]]
         
         for index, row in bb_macd_buy_signals.iterrows():
             ticker = row.get('Ticker', '')
-            company = row.get('Company', company_map.get(str(ticker), ''))
+            company_info = company_info_map.get(str(ticker), {'company': '', 'theme': ''})
+            company = row.get('Company', company_info.get('company', ''))
+            theme = company_info.get('theme', '')
             
             # 基本的な株価情報のみを抽出（不要な列を除外）
             close = row.get('Close', 0.0)
@@ -1285,6 +1287,7 @@ def extract_BB_MACD_signals(is_test_mode: bool = False) -> Dict[str, List[Dict]]
             stock_info = {
                 'Ticker': ticker,
                 'Company': company,
+                'Theme': theme,
                 'Close': close,
                 'MACD': macd,
                 'BB_Middle_20SMA': bb_middle
@@ -1296,7 +1299,9 @@ def extract_BB_MACD_signals(is_test_mode: bool = False) -> Dict[str, List[Dict]]
         
         for index, row in bb_macd_sell_signals.iterrows():
             ticker = row.get('Ticker', '')
-            company = row.get('Company', company_map.get(str(ticker), ''))
+            company_info = company_info_map.get(str(ticker), {'company': '', 'theme': ''})
+            company = row.get('Company', company_info.get('company', ''))
+            theme = company_info.get('theme', '')
             
             # 基本的な株価情報のみを抽出（不要な列を除外）
             close = row.get('Close', 0.0)
@@ -1306,6 +1311,7 @@ def extract_BB_MACD_signals(is_test_mode: bool = False) -> Dict[str, List[Dict]]
             stock_info = {
                 'Ticker': ticker,
                 'Company': company,
+                'Theme': theme,
                 'Close': close,
                 'MACD': macd,
                 'BB_Middle_20SMA': bb_middle
@@ -1342,7 +1348,7 @@ def extract_BB_MACD_signals(is_test_mode: bool = False) -> Dict[str, List[Dict]]
             logger.info(f"BB-MACD買いシグナル銘柄 {len(buy_stocks)}社をCSVに出力しました: {buy_output_file}")
         else:
             # 該当銘柄がない場合は空のデータフレームを作成して出力
-            empty_buy_df = pd.DataFrame(columns=['Ticker', 'Company', '終値', 'MACD', '20SMA'])
+            empty_buy_df = pd.DataFrame(columns=['Ticker', 'Company', 'Theme', '終値', 'MACD', '20SMA'])
             empty_buy_df.to_csv(buy_output_file, index=False, encoding='utf-8-sig')
             logger.info(f"BB-MACD買いシグナル銘柄 0社（空ファイル）をCSVに出力しました: {buy_output_file}")
         
@@ -1371,7 +1377,7 @@ def extract_BB_MACD_signals(is_test_mode: bool = False) -> Dict[str, List[Dict]]
             logger.info(f"BB-MACD売りシグナル銘柄 {len(sell_stocks)}社をCSVに出力しました: {sell_output_file}")
         else:
             # 該当銘柄がない場合は空のデータフレームを作成して出力
-            empty_sell_df = pd.DataFrame(columns=['Ticker', 'Company', '終値', 'MACD', '20SMA'])
+            empty_sell_df = pd.DataFrame(columns=['Ticker', 'Company', 'Theme', '終値', 'MACD', '20SMA'])
             empty_sell_df.to_csv(sell_output_file, index=False, encoding='utf-8-sig')
             logger.info(f"BB-MACD売りシグナル銘柄 0社（空ファイル）をCSVに出力しました: {sell_output_file}")
         
@@ -1385,14 +1391,14 @@ def extract_BB_MACD_signals(is_test_mode: bool = False) -> Dict[str, List[Dict]]
         if buy_stocks:
             logger.info("買いシグナル銘柄（上位5社）:")
             for i, stock in enumerate(buy_stocks[:5]):
-                logger.info(f"  {i+1}. {stock['Ticker']} {stock['Company']} "
+                logger.info(f"  {i+1}. {stock['Ticker']} {stock['Company']} ({stock['Theme']}) "
                            f"(終値: {stock['Close']}, MACD: {stock['MACD']:.2f}, "
                            f"20SMA: {stock['BB_Middle_20SMA']:.2f})")
         
         if sell_stocks:
             logger.info("売りシグナル銘柄（上位5社）:")
             for i, stock in enumerate(sell_stocks[:5]):
-                logger.info(f"  {i+1}. {stock['Ticker']} {stock['Company']} "
+                logger.info(f"  {i+1}. {stock['Ticker']} {stock['Company']} ({stock['Theme']}) "
                            f"(終値: {stock['Close']}, MACD: {stock['MACD']:.2f}, "
                            f"20SMA: {stock['BB_Middle_20SMA']:.2f})")
         
@@ -1612,22 +1618,22 @@ def process_data_for_ticker(ticker: str, data_dir: str, output_dir: str) -> Tupl
         return False, None
 
 
-def get_company_name_map(is_test_mode: bool = False) -> Dict[str, str]:
+def get_company_info_map(is_test_mode: bool = False) -> Dict[str, Dict[str, str]]:
     """
-    銘柄コードから会社名へのマッピングを取得します
+    銘柄コードから会社名とテーマへのマッピングを取得します
     
     Args:
         is_test_mode: テストモードかどうか
         
     Returns:
-        Dict[str, str]: 銘柄コードをキー、会社名を値とする辞書
+        Dict[str, Dict[str, str]]: 銘柄コードをキー、{'company': 会社名, 'theme': テーマ}を値とする辞書
     """
     import config  # 設定値を取得するために設定モジュールをインポート
     
     # ロガーを取得
     logger = logging.getLogger("StockSignal")
-    # 会社名マッピング用の空の辞書を初期化
-    company_map = {}
+    # 会社情報マッピング用の空の辞書を初期化
+    company_info_map = {}
     
     try:
         # テストモードに応じてCSVファイルのパスを設定
@@ -1642,27 +1648,33 @@ def get_company_name_map(is_test_mode: bool = False) -> Dict[str, str]:
         # UTF-8エンコーディングを指定（日本語の会社名を正しく読み込むため）
         df = pd.read_csv(file_path, encoding='utf-8')
         
-        # 必要なカラムの確認（Tickerと銘柄名が必要）
-        if 'Ticker' not in df.columns or '銘柄名' not in df.columns:
-            logger.error(f"企業リストに必要なカラムがありません: {file_path}")
+        # 必要なカラムの確認（Ticker、銘柄名、テーマが必要）
+        required_columns = ['Ticker', '銘柄名', 'テーマ']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            logger.error(f"企業リストに必要なカラムがありません: {missing_columns}, ファイル: {file_path}")
             # 空のマッピング辞書を返す
-            return company_map
+            return company_info_map
         
         # マッピングの作成
-        # 各行をループして、銘柄コードと会社名のマッピングを辞書に追加
+        # 各行をループして、銘柄コードと会社情報のマッピングを辞書に追加
         for _, row in df.iterrows():
             # 銘柄コードを文字列に変換してキーに（数値が混じる可能性があるため）
-            company_map[str(row['Ticker'])] = row['銘柄名']
+            ticker_str = str(row['Ticker'])
+            company_info_map[ticker_str] = {
+                'company': row['銘柄名'],
+                'theme': row['テーマ']
+            }
         
         # マッピング作成結果をログに記録
-        logger.info(f"{len(company_map)}社の会社名マッピングを読み込みました")
+        logger.info(f"{len(company_info_map)}社の会社情報マッピング（会社名・テーマ）を読み込みました")
         
     except Exception as e:
         # 例外発生時はエラーをログに記録
-        logger.error(f"会社名マッピングの読み込み中にエラーが発生しました: {str(e)}")
+        logger.error(f"会社情報マッピングの読み込み中にエラーが発生しました: {str(e)}")
     
     # 作成されたマッピング辞書を返す（エラー時は空の辞書）
-    return company_map
+    return company_info_map
 
 
 def calculate_signals(tickers: List[str], is_test_mode: bool = False) -> Dict[str, bool]:
@@ -1705,9 +1717,9 @@ def calculate_signals(tickers: List[str], is_test_mode: bool = False) -> Dict[st
     # 処理開始のログを出力
     logger.info(f"テクニカル指標の計算を開始します。対象企業数: {len(tickers)}")
     
-    # 銘柄コードから会社名へのマッピングを取得
-    # 最終結果に会社名を表示するために使用
-    company_map = get_company_name_map(is_test_mode)
+    # 銘柄コードから会社情報（会社名・テーマ）へのマッピングを取得
+    # 最終結果に会社名とテーマを表示するために使用
+    company_info_map = get_company_info_map(is_test_mode)
     
     # 各銘柄に対して処理を実行
     for ticker in tickers:
@@ -1719,8 +1731,10 @@ def calculate_signals(tickers: List[str], is_test_mode: bool = False) -> Dict[st
         
         # 処理が成功し、最新データが取得できた場合
         if success and latest_data is not None:
-            # 会社名を追加（マッピングに存在しない場合は空文字）
-            latest_data['Company'] = company_map.get(ticker, '')
+            # 会社情報を追加（マッピングに存在しない場合は空文字）
+            company_info = company_info_map.get(ticker, {'company': '', 'theme': ''})
+            latest_data['Company'] = company_info.get('company', '')
+            latest_data['Theme'] = company_info.get('theme', '')
             
             # 結合用リストに追加（後で全銘柄のデータを1つのファイルにまとめるため）
             all_latest_signals.append(latest_data)
@@ -1740,9 +1754,9 @@ def calculate_signals(tickers: List[str], is_test_mode: bool = False) -> Dict[st
             # 全銘柄のデータフレームを結合（縦方向に結合）
             combined_df = pd.concat(all_latest_signals, axis=0)
             
-            # Ticker（銘柄コード）とCompany（会社名）を先頭列に移動
+            # Ticker（銘柄コード）、Company（会社名）、Theme（テーマ）を先頭列に移動
             # 見やすさを優先したカラム順序に変更
-            cols = ['Ticker', 'Company'] + [col for col in combined_df.columns if col not in ['Ticker', 'Company']]
+            cols = ['Ticker', 'Company', 'Theme'] + [col for col in combined_df.columns if col not in ['Ticker', 'Company', 'Theme']]
             combined_df = combined_df[cols]
             
             # 結合したデータを保存

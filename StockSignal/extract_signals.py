@@ -82,7 +82,7 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         
         # 必要なカラムの存在確認
         # データフレームに必要なカラムが含まれているか検証
-        required_columns = ['Ticker', 'Company', 'MACD-RSI', 'MACD-RCI', 'BB-MACD', 'Close', 'High', 'Low', 'MACD', 'BB_Middle', rsi_long_col, rci_long_col]
+        required_columns = ['Ticker', 'Company', 'Theme', 'MACD-RSI', 'MACD-RCI', 'BB-MACD', 'Close', 'High', 'Low', 'MACD', 'BB_Middle', rsi_long_col, rci_long_col]
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             # 必要なカラムが見つからない場合はエラーログを出力して処理を中断
@@ -97,16 +97,22 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         # Buyシグナルの抽出処理
         # 1. MACD-RSIカラムが'Buy'のレコードのみを抽出
         # 2. 追加条件：終値が高値と安値の中間よりも上にある（上髭が短い銘柄）
-        # 3. 必要なカラム（銘柄コード、会社名、終値、MACD、RSI長期）のみを選択
+        # 3. 必要なカラム（銘柄コード、会社名、テーマ、終値、MACD、RSI長期）のみを選択
         macd_rsi_buy_signals = df[(df['MACD-RSI'] == 'Buy') & (df['Close'] > df['Midpoint'])]
-        macd_rsi_buy_signals = macd_rsi_buy_signals[['Ticker', 'Company', 'Close', 'MACD', rsi_long_col]]
+        macd_rsi_buy_signals = macd_rsi_buy_signals[['Ticker', 'Company', 'Theme', 'Close', 'MACD', rsi_long_col]]
         
         # 数値データの小数点以下桁数を調整（小数点以下2桁に丸める）
         macd_rsi_buy_signals['MACD'] = macd_rsi_buy_signals['MACD'].round(2)
         macd_rsi_buy_signals[rsi_long_col] = macd_rsi_buy_signals[rsi_long_col].round(2)
         
+        # 終値の表示形式を調整（小数点以下が0の場合は整数表示、それ以外は小数点以下1桁）
+        macd_rsi_buy_signals['Close'] = macd_rsi_buy_signals['Close'].apply(
+            lambda x: int(x) if x == int(x) else round(x, 1)
+        )
+        
         # カラム名を日本語に変更（レポートの可読性向上のため）
         macd_rsi_buy_signals = macd_rsi_buy_signals.rename(columns={
+            'Theme': 'テーマ',
             'Close': '終値',
             'MACD': 'MACD',
             rsi_long_col: f'RSI{config.RSI_LONG_PERIOD}'
@@ -117,9 +123,9 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         # Sellシグナルの抽出処理
         # 1. MACD-RSIカラムが'Sell'のレコードのみを抽出
         # 2. 追加条件：終値が高値と安値の中間よりも下にある（下髭が短い銘柄）
-        # 3. 必要なカラム（銘柄コード、会社名、終値、MACD、RSI長期）のみを選択
+        # 3. 必要なカラム（銘柄コード、会社名、テーマ、終値、MACD、RSI長期）のみを選択
         macd_rsi_sell_signals = df[(df['MACD-RSI'] == 'Sell') & (df['Close'] < df['Midpoint'])]
-        macd_rsi_sell_signals = macd_rsi_sell_signals[['Ticker', 'Company', 'Close', 'MACD', rsi_long_col]]
+        macd_rsi_sell_signals = macd_rsi_sell_signals[['Ticker', 'Company', 'Theme', 'Close', 'MACD', rsi_long_col]]
         
         # 数値データの小数点以下桁数を調整
         macd_rsi_sell_signals['MACD'] = macd_rsi_sell_signals['MACD'].round(2)
@@ -132,6 +138,7 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         
         # カラム名を日本語に変更（レポートの可読性向上のため）
         macd_rsi_sell_signals = macd_rsi_sell_signals.rename(columns={
+            'Theme': 'テーマ',
             'Close': '終値',
             'MACD': 'MACD',
             rsi_long_col: f'RSI{config.RSI_LONG_PERIOD}'
@@ -153,17 +160,23 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         # Buyシグナルの抽出処理
         # 1. MACD-RCIカラムが'Buy'のレコードのみを抽出
         # 2. 追加条件：終値が高値と安値の中間よりも上にある（上髭が短い銘柄）
-        # 3. 必要なカラム（銘柄コード、会社名、終値、MACD、RCI短期、RCI長期）のみを選択
+        # 3. 必要なカラム（銘柄コード、会社名、テーマ、終値、MACD、RCI短期、RCI長期）のみを選択
         macd_rci_buy_signals = df[(df['MACD-RCI'] == 'Buy') & (df['Close'] > df['Midpoint'])]
-        macd_rci_buy_signals = macd_rci_buy_signals[['Ticker', 'Company', 'Close', 'MACD', rci_short_col, rci_long_col]]
+        macd_rci_buy_signals = macd_rci_buy_signals[['Ticker', 'Company', 'Theme', 'Close', 'MACD', rci_short_col, rci_long_col]]
         
         # 数値データの小数点以下桁数を調整（小数点以下2桁に丸める）
         macd_rci_buy_signals['MACD'] = macd_rci_buy_signals['MACD'].round(2)
         macd_rci_buy_signals[rci_short_col] = macd_rci_buy_signals[rci_short_col].round(2)
         macd_rci_buy_signals[rci_long_col] = macd_rci_buy_signals[rci_long_col].round(2)
         
+        # 終値の表示形式を調整（小数点以下が0の場合は整数表示、それ以外は小数点以下1桁）
+        macd_rci_buy_signals['Close'] = macd_rci_buy_signals['Close'].apply(
+            lambda x: int(x) if x == int(x) else round(x, 1)
+        )
+        
         # カラム名を日本語に変更（レポートの可読性向上のため）
         macd_rci_buy_signals = macd_rci_buy_signals.rename(columns={
+            'Theme': 'テーマ',
             'Close': '終値',
             'MACD': 'MACD',
             rci_short_col: f'RCI{config.RCI_SHORT_PERIOD}',
@@ -175,9 +188,9 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         # Sellシグナルの抽出処理
         # 1. MACD-RCIカラムが'Sell'のレコードのみを抽出
         # 2. 追加条件：終値が高値と安値の中間よりも下にある（下髭が短い銘柄）
-        # 3. 必要なカラム（銘柄コード、会社名、終値、MACD、RCI短期、RCI長期）のみを選択
+        # 3. 必要なカラム（銘柄コード、会社名、テーマ、終値、MACD、RCI短期、RCI長期）のみを選択
         macd_rci_sell_signals = df[(df['MACD-RCI'] == 'Sell') & (df['Close'] < df['Midpoint'])]
-        macd_rci_sell_signals = macd_rci_sell_signals[['Ticker', 'Company', 'Close', 'MACD', rci_short_col, rci_long_col]]
+        macd_rci_sell_signals = macd_rci_sell_signals[['Ticker', 'Company', 'Theme', 'Close', 'MACD', rci_short_col, rci_long_col]]
         
         # 数値データの小数点以下桁数を調整
         macd_rci_sell_signals['MACD'] = macd_rci_sell_signals['MACD'].round(2)
@@ -191,6 +204,7 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         
         # カラム名を日本語に変更（レポートの可読性向上のため）
         macd_rci_sell_signals = macd_rci_sell_signals.rename(columns={
+            'Theme': 'テーマ',
             'Close': '終値',
             'MACD': 'MACD',
             rci_short_col: f'RCI{config.RCI_SHORT_PERIOD}',
@@ -213,9 +227,9 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         # Buyシグナルの抽出処理
         # 1. BB-MACDカラムが'Buy'のレコードのみを抽出
         # 2. 追加条件：終値が高値と安値の中間よりも上にある（上髭が短い銘柄）
-        # 3. 必要なカラム（銘柄コード、会社名、終値、MACD、BB_Middle）のみを選択
+        # 3. 必要なカラム（銘柄コード、会社名、テーマ、終値、MACD、BB_Middle）のみを選択
         bb_macd_buy_signals = df[(df['BB-MACD'] == 'Buy') & (df['Close'] > df['Midpoint'])]
-        bb_macd_buy_signals = bb_macd_buy_signals[['Ticker', 'Company', 'Close', 'MACD', 'BB_Middle']]
+        bb_macd_buy_signals = bb_macd_buy_signals[['Ticker', 'Company', 'Theme', 'Close', 'MACD', 'BB_Middle']]
         
         # 数値データの小数点以下桁数を調整（小数点以下2桁に丸める）
         bb_macd_buy_signals['MACD'] = bb_macd_buy_signals['MACD'].round(2)
@@ -228,6 +242,7 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         
         # カラム名を日本語に変更（レポートの可読性向上のため）
         bb_macd_buy_signals = bb_macd_buy_signals.rename(columns={
+            'Theme': 'テーマ',
             'Close': '終値',
             'MACD': 'MACD',
             'BB_Middle': '20SMA'
@@ -239,9 +254,9 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         # Sellシグナルの抽出処理
         # 1. BB-MACDカラムが'Sell'のレコードのみを抽出
         # 2. 追加条件：終値が高値と安値の中間よりも下にある（下髭が短い銘柄）
-        # 3. 必要なカラム（銘柄コード、会社名、終値、MACD、BB_Middle）のみを選択
+        # 3. 必要なカラム（銘柄コード、会社名、テーマ、終値、MACD、BB_Middle）のみを選択
         bb_macd_sell_signals = df[(df['BB-MACD'] == 'Sell') & (df['Close'] < df['Midpoint'])]
-        bb_macd_sell_signals = bb_macd_sell_signals[['Ticker', 'Company', 'Close', 'MACD', 'BB_Middle']]
+        bb_macd_sell_signals = bb_macd_sell_signals[['Ticker', 'Company', 'Theme', 'Close', 'MACD', 'BB_Middle']]
         
         # 数値データの小数点以下桁数を調整
         bb_macd_sell_signals['MACD'] = bb_macd_sell_signals['MACD'].round(2)
@@ -254,6 +269,7 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         
         # カラム名を日本語に変更（レポートの可読性向上のため）
         bb_macd_sell_signals = bb_macd_sell_signals.rename(columns={
+            'Theme': 'テーマ',
             'Close': '終値',
             'MACD': 'MACD',
             'BB_Middle': '20SMA'
@@ -280,7 +296,7 @@ def extract_signals(is_test_mode: bool = False) -> bool:
                                       (df['Close'] > df['Midpoint'])]
         
         # 必要なカラムのみを選択（両方のシグナルに使用されている指標を含める）
-        both_buy_columns = ['Ticker', 'Company', 'Close', 'MACD', rsi_long_col, rci_short_col, rci_long_col]
+        both_buy_columns = ['Ticker', 'Company', 'Theme', 'Close', 'MACD', rsi_long_col, rci_short_col, rci_long_col]
         macd_rsi_rci_buy_signals = macd_rsi_rci_buy_signals[both_buy_columns]
         
         # 数値データの小数点以下桁数を調整
@@ -289,8 +305,14 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         macd_rsi_rci_buy_signals[rci_short_col] = macd_rsi_rci_buy_signals[rci_short_col].round(2)
         macd_rsi_rci_buy_signals[rci_long_col] = macd_rsi_rci_buy_signals[rci_long_col].round(2)
         
+        # 終値の表示形式を調整（小数点以下が0の場合は整数表示、それ以外は小数点以下1桁）
+        macd_rsi_rci_buy_signals['Close'] = macd_rsi_rci_buy_signals['Close'].apply(
+            lambda x: int(x) if x == int(x) else round(x, 1)
+        )
+        
         # カラム名を日本語に変更
         macd_rsi_rci_buy_signals = macd_rsi_rci_buy_signals.rename(columns={
+            'Theme': 'テーマ',
             'Close': '終値',
             'MACD': 'MACD',
             rsi_long_col: f'RSI{config.RSI_LONG_PERIOD}',
@@ -308,7 +330,7 @@ def extract_signals(is_test_mode: bool = False) -> bool:
                                        (df['Close'] < df['Midpoint'])]
         
         # 必要なカラムのみを選択
-        both_sell_columns = ['Ticker', 'Company', 'Close', 'MACD', rsi_long_col, rci_short_col, rci_long_col]
+        both_sell_columns = ['Ticker', 'Company', 'Theme', 'Close', 'MACD', rsi_long_col, rci_short_col, rci_long_col]
         macd_rsi_rci_sell_signals = macd_rsi_rci_sell_signals[both_sell_columns]
         
         # 数値データの小数点以下桁数を調整
@@ -324,6 +346,7 @@ def extract_signals(is_test_mode: bool = False) -> bool:
         
         # カラム名を日本語に変更
         macd_rsi_rci_sell_signals = macd_rsi_rci_sell_signals.rename(columns={
+            'Theme': 'テーマ',
             'Close': '終値',
             'MACD': 'MACD',
             rsi_long_col: f'RSI{config.RSI_LONG_PERIOD}',
@@ -406,7 +429,7 @@ def extract_strong_buying_trend(is_test_mode: bool = False) -> bool:
         long_ma = f'MA{config.MA_PERIODS[2]}'   # 長期移動平均 (MA75)
         
         # 必要なカラムの存在確認
-        required_columns = ['Ticker', 'Company', 'Close', 'Volume', short_ma, mid_ma, long_ma]
+        required_columns = ['Ticker', 'Company', 'Theme', 'Close', 'Volume', short_ma, mid_ma, long_ma]
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             logger.error(f"必要なカラムがCSVファイルに見つかりません: {missing_columns}")
@@ -481,6 +504,7 @@ def extract_strong_buying_trend(is_test_mode: bool = False) -> bool:
                     strong_buying_tickers.append({
                         'Ticker': ticker,
                         'Company': current_row['Company'],
+                        'Theme': current_row['Theme'],
                         '終値（最新）': current_row['Close'],
                         'Volume': current_row['Volume'],
                         short_ma: current_row[short_ma],
@@ -505,6 +529,7 @@ def extract_strong_buying_trend(is_test_mode: bool = False) -> bool:
             
             # 列名を日本語に変更（より簡潔なラベルに）
             strong_buying_df = strong_buying_df.rename(columns={
+                'Theme': 'テーマ',  # テーマ列を日本語に変更
                 'Close': '終値（最新）',
                 'Volume': '出来高',
                 'MA_Diff_Previous': '移動平均差分（前営業日）',
@@ -518,7 +543,7 @@ def extract_strong_buying_trend(is_test_mode: bool = False) -> bool:
             
             # 列の順序を変更（long_maを含めない）
             columns_order = [
-                'Ticker', 'Company', '終値（最新）', '変化率', 
+                'Ticker', 'Company', 'テーマ', '終値（最新）', '変化率', 
                 '変化量', '移動平均差分（最新）', '移動平均差分（前営業日）',
                 short_ma, mid_ma, '出来高'
             ]
@@ -534,7 +559,7 @@ def extract_strong_buying_trend(is_test_mode: bool = False) -> bool:
             
             # 空のデータフレームを作成して出力
             empty_df = pd.DataFrame(columns=[
-                'Ticker', 'Company', '終値（最新）', '変化率',
+                'Ticker', 'Company', 'テーマ', '終値（最新）', '変化率',
                 '変化量', '移動平均差分（最新）', '移動平均差分（前営業日）',
                 short_ma, mid_ma, '出来高'
             ])
@@ -606,7 +631,7 @@ def extract_strong_selling_trend(is_test_mode: bool = False) -> bool:
         long_ma = f'MA{config.MA_PERIODS[2]}'   # 長期移動平均 (MA75)
         
         # 必要なカラムの存在確認
-        required_columns = ['Ticker', 'Company', 'Close', 'Volume', short_ma, mid_ma, long_ma]
+        required_columns = ['Ticker', 'Company', 'Theme', 'Close', 'Volume', short_ma, mid_ma, long_ma]
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             logger.error(f"必要なカラムがCSVファイルに見つかりません: {missing_columns}")
@@ -683,6 +708,7 @@ def extract_strong_selling_trend(is_test_mode: bool = False) -> bool:
                     strong_selling_tickers.append({
                         'Ticker': ticker,
                         'Company': current_row['Company'],
+                        'Theme': current_row['Theme'],
                         '終値（最新）': current_row['Close'],
                         'Volume': current_row['Volume'],
                         short_ma: current_row[short_ma],
@@ -706,6 +732,7 @@ def extract_strong_selling_trend(is_test_mode: bool = False) -> bool:
             
             # 列名を日本語に変更（より簡潔なラベルに）
             strong_selling_df = strong_selling_df.rename(columns={
+                'Theme': 'テーマ',  # テーマ列を日本語に変更
                 'Close': '終値（最新）',
                 'Volume': '出来高',
                 'MA_Diff_Previous': '移動平均差分（前営業日）',
@@ -719,7 +746,7 @@ def extract_strong_selling_trend(is_test_mode: bool = False) -> bool:
             
             # 列の順序を変更（long_maを含めない）
             columns_order = [
-                'Ticker', 'Company', '終値（最新）', '変化率', 
+                'Ticker', 'Company', 'テーマ', '終値（最新）', '変化率', 
                 '変化量', '移動平均差分（最新）', '移動平均差分（前営業日）',
                 short_ma, mid_ma, '出来高'
             ]
@@ -735,7 +762,7 @@ def extract_strong_selling_trend(is_test_mode: bool = False) -> bool:
             
             # 空のデータフレームを作成して出力
             empty_df = pd.DataFrame(columns=[
-                'Ticker', 'Company', '終値（最新）', '変化率',
+                'Ticker', 'Company', 'テーマ', '終値（最新）', '変化率',
                 '変化量', '移動平均差分（最新）', '移動平均差分（前営業日）',
                 short_ma, mid_ma, '出来高'
             ])
@@ -800,7 +827,7 @@ def extract_sanyaku_signals(is_test_mode: bool = False) -> bool:
         df = pd.read_csv(input_file, index_col=0, parse_dates=True)
         
         # 必要なカラムの存在確認
-        required_columns = ['Ticker', 'Company', 'Close', 'SanYaku_Kouten', 'SanYaku_Anten', 
+        required_columns = ['Ticker', 'Company', 'Theme', 'Close', 'SanYaku_Kouten', 'SanYaku_Anten', 
                            'Ichimoku_Tenkan', 'Ichimoku_Kijun', 'Ichimoku_SenkouA', 'Ichimoku_SenkouB',
                            'Ichimoku_Above_Cloud', 'Ichimoku_Below_Cloud',
                            'Ichimoku_Chikou_Above_Price', 'Ichimoku_Chikou_Below_Price']
@@ -811,7 +838,7 @@ def extract_sanyaku_signals(is_test_mode: bool = False) -> bool:
         
         # === 三役好転銘柄の抽出 ===
         sanyaku_kouten_signals = df[df['SanYaku_Kouten'] == True]
-        sanyaku_kouten_signals = sanyaku_kouten_signals[['Ticker', 'Company', 'Close', 
+        sanyaku_kouten_signals = sanyaku_kouten_signals[['Ticker', 'Company', 'Theme', 'Close', 
                                                         'Ichimoku_Tenkan', 'Ichimoku_Kijun', 
                                                         'Ichimoku_SenkouA', 'Ichimoku_SenkouB',
                                                         'Ichimoku_Above_Cloud', 'Ichimoku_Below_Cloud']].copy()
@@ -839,6 +866,7 @@ def extract_sanyaku_signals(is_test_mode: bool = False) -> bool:
         
         # カラム名を日本語に変更
         sanyaku_kouten_signals = sanyaku_kouten_signals.rename(columns={
+            'Theme': 'テーマ',
             'Close': '終値',
             'Ichimoku_Tenkan': '転換線',
             'Ichimoku_Kijun': '基準線'
@@ -849,7 +877,7 @@ def extract_sanyaku_signals(is_test_mode: bool = False) -> bool:
         
         # === 三役暗転銘柄の抽出 ===
         sanyaku_anten_signals = df[df['SanYaku_Anten'] == True]
-        sanyaku_anten_signals = sanyaku_anten_signals[['Ticker', 'Company', 'Close', 
+        sanyaku_anten_signals = sanyaku_anten_signals[['Ticker', 'Company', 'Theme', 'Close', 
                                                       'Ichimoku_Tenkan', 'Ichimoku_Kijun', 
                                                       'Ichimoku_SenkouA', 'Ichimoku_SenkouB',
                                                       'Ichimoku_Above_Cloud', 'Ichimoku_Below_Cloud']].copy()
@@ -877,6 +905,7 @@ def extract_sanyaku_signals(is_test_mode: bool = False) -> bool:
         
         # カラム名を日本語に変更
         sanyaku_anten_signals = sanyaku_anten_signals.rename(columns={
+            'Theme': 'テーマ',
             'Close': '終値',
             'Ichimoku_Tenkan': '転換線',
             'Ichimoku_Kijun': '基準線'
@@ -930,7 +959,7 @@ def format_sanyaku_output(df: pd.DataFrame) -> pd.DataFrame:
     
     # 列の順序を調整（三役好転・暗転では前日の値は不要）
     columns_order = [
-        'Ticker', 'Company', '終値', '転換線', '基準線', '抵抗線の目安'
+        'Ticker', 'Company', 'テーマ', '終値', '転換線', '基準線', '抵抗線の目安'
     ]
     
     return df[columns_order]
@@ -943,7 +972,7 @@ def create_empty_sanyaku_file(file_path: str):
         file_path: 作成するファイルのパス
     """
     empty_df = pd.DataFrame(columns=[
-        'Ticker', 'Company', '終値', '転換線', '基準線', '抵抗線の目安'
+        'Ticker', 'Company', 'テーマ', '終値', '転換線', '基準線', '抵抗線の目安'
     ])
     empty_df.to_csv(file_path, index=False)
 
@@ -1004,7 +1033,7 @@ def extract_ichimoku_cross_signals(is_test_mode: bool = False) -> bool:
         df = pd.read_csv(input_file, index_col=0, parse_dates=True)
         
         # 必要なカラムの存在確認
-        required_columns = ['Ticker', 'Company', 'Close', 'Ichimoku_Tenkan', 'Ichimoku_Kijun', 
+        required_columns = ['Ticker', 'Company', 'Theme', 'Close', 'Ichimoku_Tenkan', 'Ichimoku_Kijun', 
                            'Ichimoku_Above_Cloud', 'Ichimoku_Below_Cloud', 'Ichimoku_SenkouA', 'Ichimoku_SenkouB',
                            'Ichimoku_Chikou_Above_Price', 'Ichimoku_Chikou_Below_Price']
         missing_columns = [col for col in required_columns if col not in df.columns]
@@ -1080,6 +1109,7 @@ def extract_ichimoku_cross_signals(is_test_mode: bool = False) -> bool:
                 base_stock_info = {
                     'Ticker': ticker,
                     'Company': current_row['Company'],
+                    'Theme': current_row['Theme'],
                     '終値': current_row['Close'],
                     '転換線': curr_tenkan,
                     '基準線': curr_kijun,
@@ -1099,7 +1129,7 @@ def extract_ichimoku_cross_signals(is_test_mode: bool = False) -> bool:
                     # 雲の中の場合は中間値
                     resistance_level = (curr_senkou_a + curr_senkou_b) / 2 if not (pd.isna(curr_senkou_a) or pd.isna(curr_senkou_b)) else 0
                 
-                # 各条件に応じて分類（遅行線の条件を追加）
+                # 各条件に応じて分類
                 if golden_cross and curr_below_cloud and curr_chikou_above_price:
                     stock_info = base_stock_info.copy()
                     stock_info['抵抗線の目安'] = resistance_level
@@ -1210,9 +1240,13 @@ def format_ichimoku_output(df: pd.DataFrame) -> pd.DataFrame:
         lambda x: int(x) if x == int(x) else round(x, 1)
     )
     
+    # テーマ列を日本語に変更
+    if 'Theme' in df.columns:
+        df = df.rename(columns={'Theme': 'テーマ'})
+    
     # 列の順序を調整
     columns_order = [
-        'Ticker', 'Company', '終値', '転換線', '基準線', 
+        'Ticker', 'Company', 'テーマ', '終値', '転換線', '基準線', 
         '前日転換線', '前日基準線', '抵抗線の目安'
     ]
     
@@ -1227,7 +1261,7 @@ def create_empty_ichimoku_file(file_path: str):
         file_path: 作成するファイルのパス
     """
     empty_df = pd.DataFrame(columns=[
-        'Ticker', 'Company', '終値', '転換線', '基準線', 
+        'Ticker', 'Company', 'テーマ', '終値', '転換線', '基準線', 
         '前日転換線', '前日基準線', '抵抗線の目安'
     ])
     empty_df.to_csv(file_path, index=False)
