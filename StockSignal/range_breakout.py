@@ -6,6 +6,7 @@ range_breakout.py - レンジ相場をブレイクした銘柄を抽出するモ
 2. 最新の出来高が直近1か月の移動平均の1.5倍よりも多い
 3. 出来高が10万以上である
 4. 最新のClose値と、High値の差分が、Open値の0.5%未満である（上髭の長い銘柄を除外）
+5. ボリンジャーバンドの+2σよりもCloseの値が高い
 """
 import os
 import pandas as pd
@@ -117,6 +118,15 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
                 high_diff_percent = (latest_data['High'] - latest_data['Close']) / latest_data['Open'] * 100
                 condition4 = high_diff_percent < 0.5
                 
+                # 条件5: ボリンジャーバンドの+2σよりもCloseの値が高い
+                # BB_Upper列が存在し、有効な値があるかチェック
+                if 'BB_Upper' in df.columns and pd.notna(latest_data['BB_Upper']):
+                    condition5 = latest_data['Close'] > latest_data['BB_Upper']
+                else:
+                    # BB_Upper列がない、またはNaNの場合は条件を満たさないとみなす
+                    condition5 = False
+                    logger.warning(f"{csv_file}: ボリンジャーバンド上限値（BB_Upper）が利用できません。")
+                
                 # デバッグ情報の出力
                 ticker = csv_file.split('_')[0]
                 logger.debug(f"銘柄: {ticker}")
@@ -127,23 +137,34 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
                 logger.debug(f"条件3（出来高10万以上）: {condition3}")
                 logger.debug(f"条件4（上髭の長さ < 0.5%）: {condition4}")
                 logger.debug(f"高値と終値の差: {latest_data['High'] - latest_data['Close']}, Open値の0.5%: {latest_data['Open'] * 0.005}, 差分パーセント: {high_diff_percent:.2f}%")
+                logger.debug(f"条件5（BBバンド上抜け）: {condition5}")
+                if 'BB_Upper' in df.columns and pd.notna(latest_data['BB_Upper']):
+                    logger.debug(f"最新のClose: {latest_data['Close']}, BB上限: {latest_data['BB_Upper']}")
+                else:
+                    logger.debug(f"BB_Upper値が利用できません")
                 
                 # すべての条件を満たす場合、結果リストに追加
-                if condition1 and condition2 and condition3 and condition4:
+                if condition1 and condition2 and condition3 and condition4 and condition5:
                     # 企業情報を取得（マッピングに存在しない場合は空文字）
                     company_info = company_info_map.get(ticker, {'company': '', 'theme': ''})
                     company_name = company_info.get('company', '')
                     theme = company_info.get('theme', '')
                     
                     # 結果リストに追加
-                    breakout_stocks.append({
+                    breakout_result = {
                         'Ticker': ticker,
                         'Company': company_name,
                         'Theme': theme,
                         'Close': latest_data['Close'],
                         'Previous_High': previous_data['High'].max() if not previous_data.empty else None,
                         'Upper_Shadow_Pct': high_diff_percent
-                    })
+                    }
+                    
+                    # ボリンジャーバンド情報も追加
+                    if 'BB_Upper' in df.columns and pd.notna(latest_data['BB_Upper']):
+                        breakout_result['BB_Upper'] = latest_data['BB_Upper']
+                    
+                    breakout_stocks.append(breakout_result)
                     
                     logger.info(f"レンジブレイク銘柄を検出: {ticker} - {company_name} ({theme})")
                 
@@ -156,16 +177,22 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
         # 結果がない場合
         if result_df.empty:
             logger.info("条件に一致する銘柄は見つかりませんでした。")
-            # 空のファイルを出力（テーマ列を含める）
-            result_df = pd.DataFrame(columns=['Ticker', 'Company', 'Theme', 'Close', 'Previous_High', 'Upper_Shadow_Pct'])
+            # 空のファイルを出力（テーマ列とBB_Upper列を含める）
+            result_df = pd.DataFrame(columns=['Ticker', 'Company', 'Theme', 'Close', 'Previous_High', 'Upper_Shadow_Pct', 'BB_Upper'])
         else:
             # データがある場合、テーマ列を日本語に変更し、列の順序を調整
-            result_df = result_df.rename(columns={
+            column_rename = {
                 'Theme': 'テーマ',
                 'Close': '終値',
                 'Previous_High': '前日までの最高値',
                 'Upper_Shadow_Pct': '上髭の長さ(%)'
-            })
+            }
+            
+            # BB_Upper列がある場合は日本語名を追加
+            if 'BB_Upper' in result_df.columns:
+                column_rename['BB_Upper'] = 'BB上限(+2σ)'
+            
+            result_df = result_df.rename(columns=column_rename)
             
             # 終値の表示形式を調整（小数点以下が0の場合は整数表示、それ以外は小数点以下1桁）
             result_df['終値'] = result_df['終値'].apply(
@@ -176,9 +203,23 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
             result_df['前日までの最高値'] = result_df['前日までの最高値'].round(2)
             result_df['上髭の長さ(%)'] = result_df['上髭の長さ(%)'].round(2)
             
-            # 列の順序を調整（Company列の右にテーマ列を配置）
-            columns_order = ['Ticker', 'Company', 'テーマ', '終値', '前日までの最高値', '上髭の長さ(%)']
-            result_df = result_df[columns_order]
+            # BB上限値がある場合は小数点以下2桁に調整
+            if 'BB上限(+2σ)' in result_df.columns:
+                result_df['BB上限(+2σ)'] = result_df['BB上限(+2σ)'].round(2)
+            
+            # 列の順序を調整（Close列の右隣にBB上限列を配置）
+            columns_order = ['Ticker', 'Company', 'テーマ', '終値']
+            
+            # BB上限列がある場合は終値の右隣に配置
+            if 'BB上限(+2σ)' in result_df.columns:
+                columns_order.append('BB上限(+2σ)')
+            
+            # 残りの列を追加
+            columns_order.extend(['前日までの最高値', '上髭の長さ(%)'])
+            
+            # 存在する列のみで順序を調整
+            available_columns = [col for col in columns_order if col in result_df.columns]
+            result_df = result_df[available_columns]
         
         # 結果をCSVに保存
         output_path = os.path.join(result_dir, "Range_Brake.csv")
