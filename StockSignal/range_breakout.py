@@ -10,7 +10,7 @@ range_breakout.py - レンジ相場をブレイクした銘柄を抽出するモ
 import os
 import pandas as pd
 import logging
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from datetime import datetime, timedelta
 
 # 設定値をインポート
@@ -49,45 +49,8 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
         # 出力ディレクトリがない場合は作成
         os.makedirs(result_dir, exist_ok=True)
         
-        # 企業リストCSVファイルを読み込む
-        company_info = {}
-        try:
-            # 企業リストファイルのパスを構築
-            company_file_path = os.path.join(config.BASE_DIR, company_list_file)
-            if is_test_mode:
-                company_file_path = os.path.join(config.TEST_DIR, company_list_file)
-            
-            # CSVファイルを読み込む
-            company_df = pd.read_csv(company_file_path)
-            
-            # Tickerと企業名のマッピングを作成
-            # CSVの構造に依存するため、実際のカラム名を使用する必要があります
-            # 一般的なCSV構造を想定：Code（証券コード）とName（企業名）のカラムがある
-            if 'Code' in company_df.columns and 'Name' in company_df.columns:
-                # Code列とName列を使用
-                for _, row in company_df.iterrows():
-                    # 証券コードを文字列として保持し、必要に応じて左側に0を埋める
-                    code = str(row['Code']).strip()
-                    # 4桁になるように左側に0を埋める
-                    code = code.zfill(4)
-                    company_info[code] = row['Name']
-            else:
-                # 別の列名が使用されている可能性がある場合
-                # 最初の列をコード、2番目の列を名前と仮定
-                logger.warning("企業リストCSVのカラム名が想定と異なります。最初の2列を使用します。")
-                columns = company_df.columns
-                if len(columns) >= 2:
-                    for _, row in company_df.iterrows():
-                        code = str(row[columns[0]]).strip().zfill(4)
-                        company_info[code] = row[columns[1]]
-                else:
-                    logger.error("企業リストCSVの形式が不正です。企業名を取得できません。")
-            
-            logger.info(f"企業情報を読み込みました。登録数: {len(company_info)}")
-            
-        except Exception as e:
-            logger.error(f"企業リストCSVの読み込み中にエラーが発生しました: {str(e)}")
-            logger.warning("企業名なしで処理を続行します。")
+        # 企業リストCSVファイルを読み込んで会社名とテーマ情報を取得
+        company_info_map = load_company_info_map(is_test_mode)
         
         # 結果を格納するリスト
         breakout_stocks = []
@@ -167,19 +130,22 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
                 
                 # すべての条件を満たす場合、結果リストに追加
                 if condition1 and condition2 and condition3 and condition4:
-                    # 企業名を取得（マッピングに存在しない場合は空文字）
-                    company_name = company_info.get(ticker, "")
+                    # 企業情報を取得（マッピングに存在しない場合は空文字）
+                    company_info = company_info_map.get(ticker, {'company': '', 'theme': ''})
+                    company_name = company_info.get('company', '')
+                    theme = company_info.get('theme', '')
                     
                     # 結果リストに追加
                     breakout_stocks.append({
                         'Ticker': ticker,
                         'Company': company_name,
+                        'Theme': theme,
                         'Close': latest_data['Close'],
                         'Previous_High': previous_data['High'].max() if not previous_data.empty else None,
                         'Upper_Shadow_Pct': high_diff_percent
                     })
                     
-                    logger.info(f"レンジブレイク銘柄を検出: {ticker} - {company_name}")
+                    logger.info(f"レンジブレイク銘柄を検出: {ticker} - {company_name} ({theme})")
                 
             except Exception as e:
                 logger.error(f"{csv_file}の処理中にエラーが発生しました: {str(e)}")
@@ -190,12 +156,33 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
         # 結果がない場合
         if result_df.empty:
             logger.info("条件に一致する銘柄は見つかりませんでした。")
-            # 空のファイルを出力
-            result_df = pd.DataFrame(columns=['Ticker', 'Company', 'Close', 'Previous_High', 'Upper_Shadow_Pct'])
+            # 空のファイルを出力（テーマ列を含める）
+            result_df = pd.DataFrame(columns=['Ticker', 'Company', 'Theme', 'Close', 'Previous_High', 'Upper_Shadow_Pct'])
+        else:
+            # データがある場合、テーマ列を日本語に変更し、列の順序を調整
+            result_df = result_df.rename(columns={
+                'Theme': 'テーマ',
+                'Close': '終値',
+                'Previous_High': '前日までの最高値',
+                'Upper_Shadow_Pct': '上髭の長さ(%)'
+            })
+            
+            # 終値の表示形式を調整（小数点以下が0の場合は整数表示、それ以外は小数点以下1桁）
+            result_df['終値'] = result_df['終値'].apply(
+                lambda x: int(x) if x == int(x) else round(x, 1)
+            )
+            
+            # 数値データの小数点以下桁数を調整
+            result_df['前日までの最高値'] = result_df['前日までの最高値'].round(2)
+            result_df['上髭の長さ(%)'] = result_df['上髭の長さ(%)'].round(2)
+            
+            # 列の順序を調整（Company列の右にテーマ列を配置）
+            columns_order = ['Ticker', 'Company', 'テーマ', '終値', '前日までの最高値', '上髭の長さ(%)']
+            result_df = result_df[columns_order]
         
         # 結果をCSVに保存
         output_path = os.path.join(result_dir, "Range_Brake.csv")
-        result_df.to_csv(output_path, index=False)
+        result_df.to_csv(output_path, index=False, encoding='utf-8-sig')
         
         logger.info(f"レンジブレイク銘柄の抽出が完了しました。検出数: {len(result_df)}")
         logger.info(f"結果ファイルの保存先: {output_path}")
@@ -205,6 +192,64 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
     except Exception as e:
         logger.error(f"レンジブレイク銘柄の抽出処理中にエラーが発生しました: {str(e)}")
         return False
+
+
+def load_company_info_map(is_test_mode: bool = False) -> Dict[str, Dict[str, str]]:
+    """
+    銘柄コードから会社名とテーマへのマッピングを取得します
+    
+    Args:
+        is_test_mode: テストモードかどうか
+        
+    Returns:
+        Dict[str, Dict[str, str]]: 銘柄コードをキー、{'company': 会社名, 'theme': テーマ}を値とする辞書
+    """
+    # ロガーを取得
+    logger = logging.getLogger(__name__)
+    # 会社情報マッピング用の空の辞書を初期化
+    company_info_map = {}
+    
+    try:
+        # テストモードに応じてCSVファイルのパスを設定
+        if is_test_mode:
+            # テストモード: テスト用のCSVファイルを使用
+            file_path = os.path.join(config.TEST_DIR, config.COMPANY_LIST_TEST_FILE)
+        else:
+            # 通常モード: 本番用のCSVファイルを使用
+            file_path = os.path.join(config.BASE_DIR, config.COMPANY_LIST_FILE)
+        
+        # CSVファイルを読み込み
+        # UTF-8エンコーディングを指定（日本語の会社名を正しく読み込むため）
+        df = pd.read_csv(file_path, encoding='utf-8')
+        
+        # 必要なカラムの確認（Ticker、銘柄名、テーマが必要）
+        required_columns = ['Ticker', '銘柄名', 'テーマ']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            logger.error(f"企業リストに必要なカラムがありません: {missing_columns}, ファイル: {file_path}")
+            # 空のマッピング辞書を返す
+            return company_info_map
+        
+        # マッピングの作成
+        # 各行をループして、銘柄コードと会社情報のマッピングを辞書に追加
+        for _, row in df.iterrows():
+            # 銘柄コードを文字列に変換してキーに（数値が混じる可能性があるため）
+            ticker_str = str(row['Ticker'])
+            company_info_map[ticker_str] = {
+                'company': row['銘柄名'],
+                'theme': row['テーマ']
+            }
+        
+        # マッピング作成結果をログに記録
+        logger.info(f"{len(company_info_map)}社の会社情報マッピング（会社名・テーマ）を読み込みました")
+        
+    except Exception as e:
+        # 例外発生時はエラーをログに記録
+        logger.error(f"会社情報マッピングの読み込み中にエラーが発生しました: {str(e)}")
+    
+    # 作成されたマッピング辞書を返す（エラー時は空の辞書）
+    return company_info_map
+
 
 # スクリプトが直接実行された場合のテスト用
 if __name__ == "__main__":
