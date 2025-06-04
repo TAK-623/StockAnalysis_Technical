@@ -149,6 +149,7 @@ def main():
     strong_selling_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_selling_trend.csv" # 強い売りトレンド銘柄抽出
     bb_macd_buy_signals_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_bb_signal_result_buy.csv" # BB-MACD買いシグナル銘柄抽出
     bb_macd_sell_signals_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_bb_signal_result_sell.csv" # BB-MACD売りシグナル銘柄抽出
+    push_mark_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\push_mark.csv" # 押し目狙い銘柄抽出
     
     # 各CSVファイルを読み込んで、銘柄コード(Ticker)列で昇順ソートして再保存
     # 表示時に銘柄コードでソートされた状態にするため
@@ -169,6 +170,7 @@ def main():
     html_table_strong_selling, strong_selling_count = read_csv_to_html_table(strong_selling_csv_file_path) # 強い売りトレンド銘柄テーブル
     html_table_bb_macd_buy, bb_macd_buy_count = read_csv_to_html_table(bb_macd_buy_signals_csv_file_path) # BB-MACD買いシグナル銘柄テーブル
     html_table_bb_macd_sell, bb_macd_sell_count = read_csv_to_html_table(bb_macd_sell_signals_csv_file_path) # BB-MACD売りシグナル銘柄テーブル
+    html_table_push_mark, push_mark_count = read_csv_to_html_table(push_mark_csv_file_path) # 押し目狙い銘柄テーブル
     
     # 投稿のタイトルと内容を作成
     post_title = "売買シグナル_{current_date}".format(current_date=current_date)  # 投稿タイトル
@@ -374,6 +376,28 @@ def main():
         <div class="scroll-box">
         強い売りトレンド銘柄テーブル
         {html_table_strong_selling}
+        </div>
+        </div>
+        </div>
+        <p><!-- /wp:st-blocks/st-slidebox --></p>
+
+        <h2>押し目狙い銘柄 ({push_mark_count})</h2>
+        <p>短期移動平均が中期移動平均に近付いた、押し目狙いの銘柄です。</p>
+        <p>下記の条件で抽出しています。
+        </p>[st-mybox title="押し目狙い銘柄を抽出する条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
+        <ol>
+        <li>「短期移動平均-中期移動平均」の絶対値がその銘柄の最新Close値の2%以下</li>
+        <li>短期移動平均と中期移動平均の差が+方向に広がった</li>
+        <li>中期移動平均線が上向いている</li>
+        </ol>
+        [/st-mybox]        
+        <p><!-- wp:st-blocks/st-slidebox --></p>
+        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
+        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
+        <div class="st-slidebox" data-st-slidebox-content="">
+        <div class="scroll-box">
+        押し目狙い銘柄
+        {html_table_push_mark}
         </div>
         </div>
         </div>

@@ -18,7 +18,7 @@ from data_loader import setup_logger, load_company_list  # ロガー設定と企
 from stock_fetcher import fetch_stock_data  # 株価データを取得する関数
 from technical_indicators import calculate_signals  # テクニカル指標を計算する関数
 from technical_indicators import extract_BB_MACD_signals, get_BB_MACD_signal_summary
-from extract_signals import extract_signals, extract_strong_buying_trend, extract_strong_selling_trend, extract_all_ichimoku_signals  # 売買シグナルとトレンド銘柄を抽出する関数
+from extract_signals import extract_signals, extract_strong_buying_trend, extract_strong_selling_trend, extract_all_ichimoku_signals, extract_push_mark_signals  # 売買シグナルとトレンド銘柄を抽出する関数
 from range_breakout import identify_range_breakouts  # レンジブレイク銘柄抽出関数
 
 def main():
@@ -103,6 +103,16 @@ def main():
                 logger.info("強気売りトレンド銘柄の抽出が完了しました。")
             else:
                 logger.error("強気売りトレンド銘柄の抽出中にエラーが発生しました。")
+            
+            # 押し目銘柄の抽出処理を実行
+            logger.info("押し目銘柄の抽出を開始します...")
+            push_mark_success = extract_push_mark_signals(is_test_mode)
+                                
+            # 押し目銘柄抽出の結果をログに記録
+            if push_mark_success:
+                logger.info("押し目銘柄の抽出が完了しました。")
+            else:
+                logger.error("押し目銘柄の抽出中にエラーが発生しました。")
             
             # BB-MACDシグナル抽出処理を実行（extract_signals.pyと同じ場所に出力）
             logger.info("BB-MACDシグナル銘柄の抽出を開始します...")
