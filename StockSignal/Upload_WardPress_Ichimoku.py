@@ -272,7 +272,7 @@ def main():
         </div>
         <p><!-- /wp:st-blocks/st-slidebox --></p>
         
-        <h3>雲の上でのゴールデンクロス銘柄（{ichimoku_DC_upper_cloud_count}銘柄）</h3>
+        <h3>雲の上でのデッドクロス銘柄（{ichimoku_DC_upper_cloud_count}銘柄）</h3>
         <p><!-- wp:st-blocks/st-slidebox --></p>
         <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
         <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
