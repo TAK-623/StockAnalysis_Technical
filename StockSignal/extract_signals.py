@@ -381,7 +381,8 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
     以下の条件をすべて満たす銘柄を抽出します：
     1. "短期移動平均-中期移動平均"の絶対値がその銘柄の最新Close値の2%以下
     2. 前日の短期移動平均ー中期移動平均よりも最新の短期移動平均ー中期移動平均が大きい
-    3. 中期の移動平均線が上向きであること（前日の中期MA < 当日の中期MA）
+    3. 中期の移動平均線の前営業日からの変化率が0.3%以上
+    4. 最新の出来高が10万以上
     
     Args:
         is_test_mode (bool): テストモードの場合はTrue、通常モードの場合はFalse
@@ -397,7 +398,8 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
     logger.info("抽出条件:")
     logger.info("1. 「短期移動平均-中期移動平均」の絶対値がその銘柄の最新Close値の2%以下")
     logger.info("2. 前日の短期移動平均ー中期移動平均よりも最新の短期移動平均ー中期移動平均が大きい")
-    logger.info("3. 中期の移動平均線が上向きであること（前日の中期MA < 当日の中期MA）")
+    logger.info("3. 中期の移動平均線の前営業日からの変化率が0.3%以上")
+    logger.info("4. 最新の出来高が10万以上")
     
     try:
         # 入力ファイルのパスを設定
@@ -432,7 +434,7 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
         mid_ma = f'MA{config.MA_PERIODS[1]}'    # 中期移動平均 (MA25)
         
         # 必要なカラムの存在確認
-        required_columns = ['Ticker', 'Company', 'Theme', 'Close', short_ma, mid_ma]
+        required_columns = ['Ticker', 'Company', 'Theme', 'Close', 'Volume', short_ma, mid_ma]
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             logger.error(f"必要なカラムがCSVファイルに見つかりません: {missing_columns}")
@@ -450,17 +452,20 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
         df['Close_2_Percent'] = df['Close'] * 0.02
         condition1 = df['MA_Diff_Abs'] <= df['Close_2_Percent']
 
-        # 条件1を満たす候補銘柄を抽出
-        potential_tickers = df[condition1]['Ticker'].unique()
+        # 条件4: 最新の出来高が10万以上
+        condition4 = df['Volume'] >= 100000
 
-        logger.info(f"条件1を満たす候補銘柄: {len(potential_tickers)}社を検出しました")
+        # 条件1と条件4を満たす候補銘柄を抽出
+        potential_tickers = df[condition1 & condition4]['Ticker'].unique()
+
+        logger.info(f"条件1,4を満たす候補銘柄: {len(potential_tickers)}社を検出しました")
         if len(potential_tickers) > 0:
             logger.info(f"候補銘柄: {potential_tickers}")
         
         # 押し目条件を満たす銘柄を格納するリスト
         push_mark_tickers = []
         
-        # 各候補銘柄について、条件2をチェック（前日との比較）
+        # 各候補銘柄について、条件2,3をチェック（前日との比較）
         for ticker in potential_tickers:
             try:
                 # 個別銘柄のシグナルファイルを読み込む
@@ -492,6 +497,9 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
                 previous_mid_ma = recent_data.iloc[0][mid_ma]
                 current_mid_ma = recent_data.iloc[1][mid_ma]
                 
+                # 中期移動平均の前営業日からの変化率を計算
+                mid_ma_change_rate = ((current_mid_ma - previous_mid_ma) / previous_mid_ma) * 100
+                
                 # 条件2の判定結果をログ出力
                 logger.info(f"銘柄 {ticker} の条件2判定:")
                 logger.info(f"  前日差分: {previous_diff:.4f}")
@@ -502,11 +510,12 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
                 logger.info(f"銘柄 {ticker} の条件3判定:")
                 logger.info(f"  前日中期MA: {previous_mid_ma:.4f}")
                 logger.info(f"  当日中期MA: {current_mid_ma:.4f}")
-                logger.info(f"  中期MA上向き: {current_mid_ma > previous_mid_ma}")
+                logger.info(f"  中期MA変化率: {mid_ma_change_rate:.4f}%")
+                logger.info(f"  変化率0.3%以上: {mid_ma_change_rate >= 0.3}")
                 
                 # 条件2: 当日の差分が前日の差分よりも大きい
-                # 条件3: 中期移動平均が上向き（前日 < 当日）
-                if current_diff > previous_diff and current_mid_ma > previous_mid_ma:
+                # 条件3: 中期移動平均の前営業日からの変化率が0.3%以上
+                if current_diff > previous_diff and mid_ma_change_rate >= 0.3:
                     # 該当銘柄をリストに追加
                     current_row = df[df['Ticker'] == ticker].iloc[0]
                     push_mark_tickers.append({
@@ -521,8 +530,8 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
                 else:
                     if current_diff <= previous_diff:
                         logger.info(f"銘柄 {ticker} は条件2を満たしていません（差分増加なし）")
-                    if current_mid_ma <= previous_mid_ma:
-                        logger.info(f"銘柄 {ticker} は条件3を満たしていません（中期MA上向きでない）")
+                    if mid_ma_change_rate < 0.3:
+                        logger.info(f"銘柄 {ticker} は条件3を満たしていません（中期MA変化率0.3%未満: {mid_ma_change_rate:.4f}%）")
             except Exception as e:
                 logger.error(f"銘柄 {ticker} の処理中にエラーが発生しました: {str(e)}")
                 # エラーのトレースバックを出力（デバッグ用）
