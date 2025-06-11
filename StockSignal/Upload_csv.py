@@ -10,12 +10,16 @@ Google Drive APIを使用して分析結果CSVファイルをアップロード�
 from __future__ import print_function
 import os.path
 import pandas as pd
+import time
 import datetime
+import httplib2
+import google_auth_httplib2
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from googleapiclient.errors import HttpError
 
 # Google APIのスコープ定義
 # SCOPES変更時はtoken.jsonを削除する必要があります（再認証が必要になるため）
@@ -77,7 +81,7 @@ def upload_file(service, file_path, folder_id):
     
     return file.get('id')  # アップロードされたファイルのIDを返す
 
-def convert_to_google_sheet(service, file_id, sheet_name):
+def convert_to_google_sheet(service, file_id, sheet_name, retries=3):
     """
     アップロードしたCSVファイルをGoogleスプレッドシートに変換します
     
@@ -91,13 +95,19 @@ def convert_to_google_sheet(service, file_id, sheet_name):
     """
     # スプレッドシート変換のためのメタデータを設定
     file_metadata = {
-        'name': sheet_name,  # スプレッドシート名
+        'name': sheet_name, # スプレッドシート名
         'mimeType': 'application/vnd.google-apps.spreadsheet'  # スプレッドシートタイプを指定
     }
-    
+
     # ファイルコピーAPIを使用して、CSVをスプレッドシートとしてコピー（変換）
-    drive_response = service.files().copy(fileId=file_id, body=file_metadata).execute()
-    return drive_response.get('id')  # 作成されたスプレッドシートのIDを返す
+    for attempt in range(retries):
+        try:
+            drive_response = service.files().copy(fileId=file_id, body=file_metadata).execute()
+            return drive_response.get('id')
+        except HttpError as error:
+            print(f"エラー発生（{attempt + 1}回目）: {error}")
+            time.sleep(2 * (attempt + 1))  # エクスポネンシャルバックオフ
+    raise Exception("Googleスプレッドシートへの変換に失敗しました")
 
 def get_sheet_id(spreadsheet_service, spreadsheet_id, sheet_name):
     """
@@ -188,6 +198,7 @@ def main():
             token.write(creds.to_json())
 
     # Google Drive APIとGoogle Sheets APIのサービスオブジェクトを構築
+    http = google_auth_httplib2.AuthorizedHttp(creds, http=httplib2.Http(timeout=60)) # タイムアウト設定
     drive_service = build('drive', 'v3', credentials=creds)
     sheets_service = build('sheets', 'v4', credentials=creds)
 
@@ -256,6 +267,9 @@ def main():
         # スプレッドシートに変換
         sheet_id = convert_to_google_sheet(drive_service, file_id, sheet_name)
         print(f"Google Sheet ID for {sheet_name}: {sheet_id}")
+
+        # 1秒待機
+        time.sleep(1)
 
 # スクリプトが直接実行された場合のエントリーポイント
 if __name__ == '__main__':
