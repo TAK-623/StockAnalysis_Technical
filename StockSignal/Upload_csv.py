@@ -51,7 +51,7 @@ def create_folder(service, folder_name, parent_folder_id=None):
     folder = service.files().create(body=file_metadata, fields='id').execute()
     return folder.get('id')  # 作成されたフォルダのIDを返す
 
-def upload_file(service, file_path, folder_id):
+def upload_file(service, file_path, folder_id, retries=3):
     """
     ファイルをGoogle Driveの指定フォルダにアップロードします
     
@@ -76,8 +76,15 @@ def upload_file(service, file_path, folder_id):
     media = MediaFileUpload(file_path, mimetype='text/csv')
     
     # ファイルアップロードAPIを呼び出し
-    file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-    print(f"File ID: {file.get('id')}")  # アップロードされたファイルのIDを表示
+    for attempt in range(retries):
+        try:
+            file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+            print(f"File ID: {file.get('id')}")  # アップロードされたファイルのIDを表示
+            return file.get('id')
+        except HttpError as e:
+            print(f"アップロード失敗（{attempt + 1}回目）: {e}")
+            time.sleep(2 * (attempt + 1))
+    raise Exception(f"{file_name} のアップロードに失敗しました")
     
     return file.get('id')  # アップロードされたファイルのIDを返す
 
@@ -269,7 +276,7 @@ def main():
         print(f"Google Sheet ID for {sheet_name}: {sheet_id}")
 
         # 1秒待機
-        time.sleep(1)
+        time.sleep(5)
 
 # スクリプトが直接実行された場合のエントリーポイント
 if __name__ == '__main__':
