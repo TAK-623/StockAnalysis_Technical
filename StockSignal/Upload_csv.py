@@ -261,6 +261,7 @@ def main():
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\ichimoku_DC_upper_cloud.csv', # 一目均衡表 雲の上でデッドクロス銘柄
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\sanyaku_kouten.csv', # 一目均衡表 三役好転銘柄
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\sanyaku_anten.csv', # 一目均衡表 三役暗転銘柄
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\push_mark.csv', # 押し目狙い銘柄
     ]
     
     # 各ファイルについて処理：アップロード→スプレッドシート変換（ソートなし）
