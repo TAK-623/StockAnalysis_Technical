@@ -520,7 +520,7 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
                     current_row = df[df['Ticker'] == ticker].iloc[0]
                     push_mark_tickers.append({
                         'Ticker': ticker,
-                        '銘柄名': current_row['Company'],
+                        'Company': current_row['Company'],
                         'テーマ': current_row['Theme'],
                         '最新の終値': current_row['Close'],
                         '短期移動平均': current_row[short_ma],
@@ -560,7 +560,7 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
             # 結果の詳細をログに出力（最初の5社まで）
             logger.info("押し目銘柄（上位5社）:")
             for i, stock in enumerate(push_mark_tickers[:5]):
-                logger.info(f"  {i+1}. {stock['Ticker']} {stock['銘柄名']} ({stock['テーマ']}) "
+                logger.info(f"  {i+1}. {stock['Ticker']} {stock['Company']} ({stock['テーマ']}) "
                            f"終値: {stock['最新の終値']}, "
                            f"短期MA: {stock['短期移動平均']:.2f}, "
                            f"中期MA: {stock['中期移動平均']:.2f}")
@@ -569,7 +569,7 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
             
             # 空のデータフレームを作成して出力
             empty_df = pd.DataFrame(columns=[
-                'Ticker', '銘柄名', 'テーマ', '最新の終値', '短期移動平均', '中期移動平均'
+                'Ticker', 'Company', 'テーマ', '最新の終値', '短期移動平均', '中期移動平均'
             ])
             output_file = os.path.join(output_dir, "push_mark.csv")
             empty_df.to_csv(output_file, index=False, encoding='utf-8-sig')
