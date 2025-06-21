@@ -212,9 +212,9 @@ def main():
     # "株"フォルダのID（Google Drive上に事前に作成済みのフォルダ）
     KABU_FOLDER_ID = '14dKMMuKFQu9cgRw-UQeY2UK_fLDnwvOz'
     
-    # 今日の日付をYYYYMMDD形式で取得し、その名前のフォルダを作成
-    today_str = datetime.datetime.today().strftime('%Y%m%d')
-    yyyymmdd_folder_id = create_folder(drive_service, today_str, KABU_FOLDER_ID)
+    # 前日の日付をYYYYMMDD形式で取得し、その名前のフォルダを作成
+    yesterday_str = (datetime.datetime.today() - datetime.timedelta(days=1)).strftime('%Y%m%d')
+    yyyymmdd_folder_id = create_folder(drive_service, yesterday_str, KABU_FOLDER_ID)
 
     # アップロードして並べ替えを行うファイルリスト
     # 現在はコメントアウトされているため、処理されない
