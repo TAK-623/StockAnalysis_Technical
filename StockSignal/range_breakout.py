@@ -120,12 +120,12 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
                 
                 # 条件5: ボリンジャーバンドの+2σよりもCloseの値が高い
                 # BB_Upper列が存在し、有効な値があるかチェック
-                if 'BB_Upper' in df.columns and pd.notna(latest_data['BB_Upper']):
-                    condition5 = latest_data['Close'] > latest_data['BB_Upper']
-                else:
-                    # BB_Upper列がない、またはNaNの場合は条件を満たさないとみなす
-                    condition5 = False
-                    logger.warning(f"{csv_file}: ボリンジャーバンド上限値（BB_Upper）が利用できません。")
+                # if 'BB_Upper' in df.columns and pd.notna(latest_data['BB_Upper']):
+                #     condition5 = latest_data['Close'] > latest_data['BB_Upper']
+                # else:
+                #     # BB_Upper列がない、またはNaNの場合は条件を満たさないとみなす
+                #     condition5 = False
+                #     logger.warning(f"{csv_file}: ボリンジャーバンド上限値（BB_Upper）が利用できません。")
                 
                 # デバッグ情報の出力
                 ticker = csv_file.split('_')[0]
@@ -137,14 +137,15 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
                 logger.debug(f"条件3（出来高10万以上）: {condition3}")
                 logger.debug(f"条件4（上髭の長さ < 1.0%）: {condition4}")
                 logger.debug(f"高値と終値の差: {latest_data['High'] - latest_data['Close']}, Open値の1.0%: {latest_data['Open'] * 0.01}, 差分パーセント: {high_diff_percent:.2f}%")
-                logger.debug(f"条件5（BBバンド上抜け）: {condition5}")
+                # logger.debug(f"条件5（BBバンド上抜け）: {condition5}")
                 if 'BB_Upper' in df.columns and pd.notna(latest_data['BB_Upper']):
                     logger.debug(f"最新のClose: {latest_data['Close']}, BB上限: {latest_data['BB_Upper']}")
                 else:
                     logger.debug(f"BB_Upper値が利用できません")
                 
                 # すべての条件を満たす場合、結果リストに追加
-                if condition1 and condition2 and condition3 and condition4 and condition5:
+                # if condition1 and condition2 and condition3 and condition4 and condition5:
+                if condition1 and condition2 and condition3 and condition4:
                     # 企業情報を取得（マッピングに存在しない場合は空文字）
                     company_info = company_info_map.get(ticker, {'company': '', 'theme': ''})
                     company_name = company_info.get('company', '')
