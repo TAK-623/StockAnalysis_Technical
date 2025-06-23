@@ -5,7 +5,7 @@ range_breakout.py - レンジ相場をブレイクした銘柄を抽出するモ
 1. 最新のCloseが直近1か月の「前日までの」最高値を更新している
 2. 最新の出来高が直近1か月の移動平均の1.5倍よりも多い
 3. 出来高が10万以上である
-4. 最新のClose値と、High値の差分が、Open値の0.5%未満である（上髭の長い銘柄を除外）
+4. 最新のClose値と、High値の差分が、Open値の1.0%未満である（上髭の長い銘柄を除外）
 5. ボリンジャーバンドの+2σよりもCloseの値が高い
 """
 import os
@@ -114,9 +114,9 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
                 # 条件3: 出来高が10万以上であるか
                 condition3 = latest_data['Volume'] >= 100000
                 
-                # 条件4: 最新のClose値と、High値の差分が、Open値の0.5%未満である（上髭の長い銘柄を除外）
+                # 条件4: 最新のClose値と、High値の差分が、Open値の1.0%未満である（上髭の長い銘柄を除外）
                 high_diff_percent = (latest_data['High'] - latest_data['Close']) / latest_data['Open'] * 100
-                condition4 = high_diff_percent < 0.5
+                condition4 = high_diff_percent < 1.0
                 
                 # 条件5: ボリンジャーバンドの+2σよりもCloseの値が高い
                 # BB_Upper列が存在し、有効な値があるかチェック
@@ -135,8 +135,8 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
                 logger.debug(f"条件2（出来高1.5倍）: {condition2}")
                 logger.debug(f"最新の出来高: {latest_data['Volume']}, 移動平均: {volume_ma}")
                 logger.debug(f"条件3（出来高10万以上）: {condition3}")
-                logger.debug(f"条件4（上髭の長さ < 0.5%）: {condition4}")
-                logger.debug(f"高値と終値の差: {latest_data['High'] - latest_data['Close']}, Open値の0.5%: {latest_data['Open'] * 0.005}, 差分パーセント: {high_diff_percent:.2f}%")
+                logger.debug(f"条件4（上髭の長さ < 1.0%）: {condition4}")
+                logger.debug(f"高値と終値の差: {latest_data['High'] - latest_data['Close']}, Open値の1.0%: {latest_data['Open'] * 0.01}, 差分パーセント: {high_diff_percent:.2f}%")
                 logger.debug(f"条件5（BBバンド上抜け）: {condition5}")
                 if 'BB_Upper' in df.columns and pd.notna(latest_data['BB_Upper']):
                     logger.debug(f"最新のClose: {latest_data['Close']}, BB上限: {latest_data['BB_Upper']}")
