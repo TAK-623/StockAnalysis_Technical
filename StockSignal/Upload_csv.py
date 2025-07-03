@@ -243,14 +243,14 @@ def main():
     # アップロードするが並べ替えは行わないファイルリスト
     # シグナル結果（買い・売り）のCSVファイル
     files_to_upload_no_sort = [
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\Range_Brake.csv', # レンジブレイク銘柄抽出
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\push_mark.csv', # 押し目狙い銘柄
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_signal_result_buy.csv',  # 買いシグナルCSV
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_signal_result_sell.csv', # 売りシグナルCSV
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rci_signal_result_buy.csv',  # 買いシグナルCSV
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rci_signal_result_sell.csv', # 売りシグナルCSV
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_buy.csv',  # 買いシグナルCSV
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_sell.csv', # 売りシグナルCSV
-        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\TechnicalSignal\\latest_signal.csv', # テクニカル指標最新値CSV
-        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\Range_Brake.csv', # レンジブレイク銘柄抽出
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_buying_trend.csv', # 強い買いトレンド銘柄抽出
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_selling_trend.csv', # 強い売りトレンド銘柄抽出
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\bb_macd_buy_signals.csv', # BB-MACD買いシグナル
@@ -259,9 +259,9 @@ def main():
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\ichimoku_GC_upper_cloud.csv', # 一目均衡表 雲の上でゴールデンクロス銘柄
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\ichimoku_DC_under_cloud.csv', # 一目均衡表 雲の下でデッドクロス銘柄
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\ichimoku_DC_upper_cloud.csv', # 一目均衡表 雲の上でデッドクロス銘柄
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\TechnicalSignal\\latest_signal.csv', # テクニカル指標最新値CSV
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\sanyaku_kouten.csv', # 一目均衡表 三役好転銘柄
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\sanyaku_anten.csv', # 一目均衡表 三役暗転銘柄
-        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\push_mark.csv', # 押し目狙い銘柄
     ]
     
     # 各ファイルについて処理：アップロード→スプレッドシート変換（ソートなし）
