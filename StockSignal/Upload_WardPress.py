@@ -404,16 +404,15 @@ def main():
         </div>
         <p><!-- /wp:st-blocks/st-slidebox --></p>
 
-        <h2>レンジブレイク銘柄 ({range_break_count})</h2>
-        <p>過去1か月間の最高値を更新した銘柄です。</p>
+        <h2>ブレイク銘柄 ({range_break_count})</h2>
+        <p>過去3か月間の最高値を更新した銘柄です。</p>
         <p>下記の条件で抽出しています。
-        </p>[st-mybox title="レンジブレイク銘柄を抽出する条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
+        </p>[st-mybox title="ブレイク銘柄を抽出する条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
         <ol>
-        <li>最新の終値が過去1か月間の最高値を上回っている</li>
-        <li>最新の出来高が過去1か月間の出来高平均値の1.5倍よりも多い</li>
-        <li>最高値と終値の差分が0.5%以下（上髭が短い）</li>
+        <li>最新の終値が過去3か月間の最高値を上回っている</li>
+        <li>最新の出来高が過去3か月間の出来高平均値の1.5倍よりも多い</li>
+        <li>終値が高値と安値の中間値よりも高い</li>
         <li>最新の出来高が10万以上</li>
-        <li>ボリンジャーバンドの+2σよりも高値</li>
         </ol>
         [/st-mybox]        
         <p><!-- wp:st-blocks/st-slidebox --></p>

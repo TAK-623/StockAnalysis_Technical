@@ -39,7 +39,7 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
     try:
         # 入出力ディレクトリの設定（テストモードに応じて切り替え）
         if is_test_mode:
-            technical_dir = config.TEST_TECHNICAL_DIR
+            technical_dir = os.path.join(config.TEST_TECHNICAL_DIR, "StockSignal", "TechnicalSignal")
             result_dir = os.path.join(config.TEST_DIR, "Result")
             company_list_file = config.COMPANY_LIST_TEST_FILE
         else:
@@ -72,13 +72,15 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
                 # CSVファイルの読み込み
                 df = pd.read_csv(file_path)
                 
+                print(len(df))
+                
                 # データが空の場合はスキップ
                 if df.empty:
                     logger.warning(f"{csv_file}のデータが空です。スキップします。")
                     continue
                 
                 # データが十分にない場合はスキップ
-                if len(df) < 30:  # 約1か月分のデータ（営業日）が必要
+                if len(df) < 90:  # 約3か月分のデータ（営業日）が必要
                     logger.warning(f"{csv_file}のデータが不足しています。スキップします。")
                     continue
                 
@@ -88,17 +90,17 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
                 # 最新の日付を取得
                 latest_date = df['Date'].max()
                 
-                # 1か月前の日付を計算
-                one_month_ago = latest_date - timedelta(days=30)
+                # 3か月前の日付を計算
+                three_month_ago = latest_date - timedelta(days=90)
                 
-                # 1か月分のデータを抽出（最新日を含む）
-                one_month_data = df[df['Date'] >= one_month_ago]
+                # 3か月分のデータを抽出（最新日を含む）
+                three_month_data = df[df['Date'] >= three_month_ago]
                 
                 # 最新のデータを取得
                 latest_data = df.iloc[-1]
                 
                 # 前日までのデータを抽出（最新日を除く）
-                previous_data = one_month_data[one_month_data['Date'] < latest_date]
+                previous_data = three_month_data[three_month_data['Date'] < latest_date]
                 
                 # 条件1: 最新のCloseが直近1か月の「前日までの」最高値を更新しているか
                 if previous_data.empty:
@@ -108,15 +110,19 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
                     condition1 = latest_data['Close'] >= previous_data['High'].max()
                 
                 # 条件2: 最新の出来高が直近1か月の移動平均の1.5倍よりも多いか
-                volume_ma = one_month_data['Volume'].mean()
+                volume_ma = three_month_data['Volume'].mean()
                 condition2 = latest_data['Volume'] > volume_ma * 1.5  # 移動平均の1.5倍を超えているか
                 
                 # 条件3: 出来高が10万以上であるか
                 condition3 = latest_data['Volume'] >= 100000
                 
-                # 条件4: 最新のClose値と、High値の差分が、Open値の1.0%未満である（上髭の長い銘柄を除外）
+                # 条件4: Close値が、LowとHighの中間（中央値）よりも高い
+                mid_price = (latest_data['High'] + latest_data['Low']) / 2
+                condition4 = latest_data['Close'] > mid_price
+                
+                # 条件4_old: 最新のClose値と、High値の差分が、Open値の1.0%未満である（上髭の長い銘柄を除外）
                 high_diff_percent = (latest_data['High'] - latest_data['Close']) / latest_data['Open'] * 100
-                condition4 = high_diff_percent < 1.0
+                # condition4 = high_diff_percent < 1.0
                 
                 # 条件5: ボリンジャーバンドの+2σよりもCloseの値が高い
                 # BB_Upper列が存在し、有効な値があるかチェック
@@ -135,7 +141,7 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
                 logger.debug(f"条件2（出来高1.5倍）: {condition2}")
                 logger.debug(f"最新の出来高: {latest_data['Volume']}, 移動平均: {volume_ma}")
                 logger.debug(f"条件3（出来高10万以上）: {condition3}")
-                logger.debug(f"条件4（上髭の長さ < 1.0%）: {condition4}")
+                logger.debug(f"条件4（HighとLowの中間よりも高値で終了）: {condition4}")
                 logger.debug(f"高値と終値の差: {latest_data['High'] - latest_data['Close']}, Open値の1.0%: {latest_data['Open'] * 0.01}, 差分パーセント: {high_diff_percent:.2f}%")
                 # logger.debug(f"条件5（BBバンド上抜け）: {condition5}")
                 if 'BB_Upper' in df.columns and pd.notna(latest_data['BB_Upper']):
