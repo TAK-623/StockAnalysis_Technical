@@ -12,6 +12,17 @@ import pandas as pd
 import requests
 from requests.auth import HTTPBasicAuth
 from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import os
+import base64
+import japanize_matplotlib
+import mplfinance as mpf
+from io import BytesIO
+import time
+from matplotlib import font_manager as fm
+from PIL import Image
+import math
 
 # WordPressサイトの接続情報を設定
 WP_SITE_URL = "https://www.takstorage.site/"  # WordPressサイトのURL
@@ -21,6 +32,25 @@ WP_APP_PASSWORD = "GNrk aQ3d 7GWu p1fw dCfM pAGH"  # WordPress アプリケー�
 
 # 今日の日付と昨日の日付を取得（昨日の株価データを投稿するため）
 current_date = (datetime.now()).strftime("%Y/%m/%d")  # YYYY/MM/DD形式
+
+# チャート生成用の設定
+# フォント設定とスタイル
+plt.style.use('default')
+japanize_matplotlib.japanize()
+# 日本語フォントを確実に登録
+possible_fonts = [
+    r"C:\\Windows\\Fonts\\meiryo.ttc",
+    r"C:\\Windows\\Fonts\\meiryob.ttc",
+    r"C:\\Windows\\Fonts\\msgothic.ttc",
+    r"C:\\Windows\\Fonts\\YuGothM.ttc"
+]
+for fpath in possible_fonts:
+    if os.path.exists(fpath):
+        try:
+            fm.fontManager.addfont(fpath)
+        except Exception:
+            pass
+plt.rcParams['font.family'] = ['Meiryo', 'Yu Gothic', 'MS Gothic']
 
 # 投稿の冒頭部分のテキスト（HTMLタグ含む）
 # 投稿の説明文と銘柄コードの解説を含む
@@ -97,6 +127,178 @@ def read_csv_to_html_table(csv_file_path):
     # テーブルの内容とCSV内の銘柄数（行数）を返す
     return styled_table, len(df)
 
+def load_company_names():
+    """
+    銘柄名辞書を読み込み
+    
+    Returns:
+        dict: ティッカーをキー、銘柄名を値とする辞書
+    """
+    try:
+        company_list_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "company_list_20250426.csv")
+        df = pd.read_csv(company_list_file, encoding='utf-8')
+        return dict(zip(df['Ticker'], df['銘柄名']))
+    except Exception as e:
+        print(f"銘柄名ファイルの読み込みエラー: {e}")
+        return {}
+
+def load_stock_data(ticker):
+    """
+    指定されたティッカーの株価データを読み込み
+    
+    Args:
+        ticker (str): ティッカー
+        
+    Returns:
+        pandas.DataFrame: 株価データ（Date, Open, High, Low, Close, Volume）
+    """
+    try:
+        technical_signal_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "TechnicalSignal")
+        signal_file = os.path.join(technical_signal_dir, f"{ticker}_signal.csv")
+        if not os.path.exists(signal_file):
+            print(f"信号ファイルが見つかりません: {signal_file}")
+            return None
+        
+        df = pd.read_csv(signal_file, encoding='utf-8')
+        
+        # 必要な列のみを選択
+        required_columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
+        if not all(col in df.columns for col in required_columns):
+            print(f"必要な列が見つかりません: {ticker}")
+            return None
+        
+        # 日付列をdatetime型に変換
+        df['Date'] = pd.to_datetime(df['Date'])
+        
+        # 最新のデータから過去60日分を取得
+        df = df.sort_values('Date').tail(60)
+        
+        return df[required_columns]
+        
+    except Exception as e:
+        print(f"株価データの読み込みエラー ({ticker}): {e}")
+        return None
+
+def generate_chart(ticker, company_names):
+    """
+    指定されたティッカーのチャートを生成し、`StockSignal/Result/{Ticker}_chart.png` に保存
+    
+    Args:
+        ticker (str): ティッカー
+        company_names (dict): 銘柄名辞書
+        
+    Returns:
+        str | None: 生成されたチャートPNGファイルのパス
+    """
+    try:
+        # 株価データを読み込み
+        df = load_stock_data(ticker)
+        if df is None or df.empty:
+            return None
+        
+        # 銘柄名を取得
+        company_name = company_names.get(ticker, f"銘柄{ticker}")
+        
+        # mplfinance 形式に変換
+        df_mpf = df.copy()
+        df_mpf = df_mpf.set_index('Date')
+        df_mpf = df_mpf[['Open', 'High', 'Low', 'Close', 'Volume']]
+
+        # マーケットカラーとスタイル（日本語フォント）
+        # mplfinanceでは、up=陽線（Close > Open）、down=陰線（Close < Open）
+        # 日本式：赤=上昇、青=下降
+        mc = mpf.make_marketcolors(
+            up='#d32f2f',      # 陽線（赤色）
+            down='#1e88e5',    # 陰線（青色）
+            edge='inherit',    # 枠線は継承
+            volume='inherit',  # 出来高は陽線・陰線と同じ色
+            wick='inherit',    # ヒゲは継承
+            ohlc='inherit'     # OHLCは継承
+        )
+        # 日本式スタイルを明示的に設定
+        s = mpf.make_mpf_style(
+            base_mpf_style='yahoo',
+            marketcolors=mc,
+            rc={'font.family': 'Meiryo'},
+            y_on_right=True  # Y軸を右側に
+        )
+
+        # 出力ファイルパス
+        result_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Result")
+        os.makedirs(result_dir, exist_ok=True)
+        output_file = os.path.join(result_dir, f"{ticker}_chart.png")
+
+        # 画像をファイルに保存（figを受け取り軸を整形）
+        fig, axes = mpf.plot(
+            df_mpf,
+            type='candle',
+            mav=(5, 25),
+            style=s,
+            title=f"{ticker} - {company_name}",
+            figsize=(9.6, 6.4),  # 960px × 640px (96 DPI)
+            volume=True,  # 出来高を表示
+            tight_layout=True,
+            returnfig=True
+        )
+        # 出来高軸の指数表記オフ＋桁区切り
+        try:
+            from matplotlib.ticker import FuncFormatter
+            if isinstance(axes, dict) and 'volume' in axes:
+                axes['volume'].yaxis.set_major_formatter(FuncFormatter(lambda x, pos: f"{int(x):,}" if x >= 1 else f"{x}"))
+            elif hasattr(fig, 'axes') and len(fig.axes) >= 2:
+                fig.axes[-1].yaxis.set_major_formatter(FuncFormatter(lambda x, pos: f"{int(x):,}" if x >= 1 else f"{x}"))
+        except Exception:
+            pass
+        
+        # 軸ラベルを日本語に変更
+        try:
+            if isinstance(axes, dict):
+                if 'main' in axes:
+                    axes['main'].set_ylabel('価格', fontsize=10)
+                if 'volume' in axes:
+                    axes['volume'].set_ylabel('出来高', fontsize=10)
+            elif hasattr(fig, 'axes') and len(fig.axes) >= 2:
+                fig.axes[0].set_ylabel('価格', fontsize=10)
+                fig.axes[1].set_ylabel('出来高', fontsize=10)
+        except Exception:
+            pass
+        fig.savefig(output_file, dpi=300, bbox_inches='tight', format='png')
+        plt.close(fig)
+        return output_file
+        
+    except Exception as e:
+        print(f"チャート生成エラー ({ticker}): {e}")
+        return None
+
+def upload_image_to_wordpress(image_path: str):
+    """
+    画像ファイルをWordPressメディアにアップロードしてURLを返す
+    """
+    try:
+        media_endpoint = f"{WP_SITE_URL}/wp-json/wp/v2/media"
+        # multipart/form-data で送信し、User-Agent を指定
+        ua = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
+        }
+        files = {
+            'file': (os.path.basename(image_path), open(image_path, 'rb'), 'image/png')
+        }
+        # 軽いリトライ（WAF対策）
+        for attempt in range(5):
+            resp = requests.post(media_endpoint, headers=ua, files=files, auth=HTTPBasicAuth(WP_USERNAME, WP_APP_PASSWORD))
+            if resp.status_code in (200, 201):
+                return resp.json().get('source_url')
+            # 403や429などは待機して再試行
+            if resp.status_code in (403, 429, 500, 502, 503):
+                time.sleep(2 + attempt * 2)
+                continue
+            break
+        print(f"画像アップロード失敗: {resp.status_code} {resp.text}")
+        return None
+    except Exception as e:
+        print(f"画像アップロードでエラー: {e}")
+        return None
+
 def post_to_wordpress(title, post_content):
     """
     WordPressに投稿記事を送信します
@@ -131,6 +333,99 @@ def post_to_wordpress(title, post_content):
         print("投稿が成功しました:", response.json()["link"])
     else:
         print("投稿に失敗しました:", response.status_code, response.text)
+
+def combine_charts(chart_paths, charts_per_image=10):
+    """
+    複数のチャート画像を10銘柄ずつに分割して複数の画像ファイルを作成します。
+    960px幅のグリッドレイアウトで配置します。
+    
+    Args:
+        chart_paths (list of str): 結合するチャート画像のパスのリスト
+        charts_per_image (int): 1つの画像ファイルに含めるチャート数（デフォルト10）
+        
+    Returns:
+        list: 結合された画像のパスのリスト
+    """
+    if not chart_paths:
+        return []
+
+    # 画像を読み込む
+    images = [Image.open(p) for p in chart_paths]
+    
+    # 目標幅（960px）
+    target_width = 960
+    
+    # 各画像のサイズを取得
+    original_widths, original_heights = zip(*(i.size for i in images))
+    
+    # 1行あたりの画像数を計算（960px幅に収まるように）
+    # 各画像の幅を960pxで割って、1行に何個収まるかを計算
+    avg_width = sum(original_widths) / len(original_widths)
+    images_per_row = max(1, int(target_width / avg_width))
+    
+    # 画像をリサイズ（幅を統一）
+    resized_images = []
+    for img in images:
+        # アスペクト比を保ってリサイズ
+        aspect_ratio = img.size[1] / img.size[0]
+        new_width = target_width // images_per_row
+        new_height = int(new_width * aspect_ratio)
+        resized_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        resized_images.append(resized_img)
+    
+    # 出力ファイルパス
+    result_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Result")
+    os.makedirs(result_dir, exist_ok=True)
+    
+    output_files = []
+    
+    # charts_per_imageずつに分割して画像を作成
+    for i in range(0, len(resized_images), charts_per_image):
+        batch_images = resized_images[i:i + charts_per_image]
+        
+        # グリッドの行数を計算
+        num_rows = math.ceil(len(batch_images) / images_per_row)
+        
+        # 各行の高さを計算
+        row_heights = []
+        for row in range(num_rows):
+            start_idx = row * images_per_row
+            end_idx = min(start_idx + images_per_row, len(batch_images))
+            row_height = max(img.size[1] for img in batch_images[start_idx:end_idx])
+            row_heights.append(row_height)
+        
+        # 結合された画像のサイズを計算
+        combined_width = target_width
+        combined_height = sum(row_heights)
+        
+        # 結合された画像を作成
+        combined_image = Image.new('RGB', (combined_width, combined_height), 'white')
+        
+        # 画像をグリッドレイアウトで配置
+        y_offset = 0
+        for row in range(num_rows):
+            x_offset = 0
+            row_height = row_heights[row]
+            
+            for col in range(images_per_row):
+                img_idx = row * images_per_row + col
+                if img_idx < len(batch_images):
+                    img = batch_images[img_idx]
+                    # 中央揃えで配置
+                    x_center = x_offset + (target_width // images_per_row - img.size[0]) // 2
+                    y_center = y_offset + (row_height - img.size[1]) // 2
+                    combined_image.paste(img, (x_center, y_center))
+                    x_offset += target_width // images_per_row
+            
+            y_offset += row_height
+        
+        # 画像を保存
+        batch_num = i // charts_per_image + 1
+        output_file = os.path.join(result_dir, f"combined_charts_batch_{batch_num}.png")
+        combined_image.save(output_file, 'PNG')
+        output_files.append(output_file)
+    
+    return output_files
 
 def main():
     """
@@ -427,6 +722,64 @@ def main():
         </div>
         <p><!-- /wp:st-blocks/st-slidebox --></p>
         """
+    
+    # レンジブレイク銘柄のチャートを生成
+    print("レンジブレイク銘柄のチャートを生成中...")
+    company_names = load_company_names()
+    chart_img_paths = []
+    
+    # Range_Brake.csvからレンジブレイク銘柄を読み込み
+    try:
+        range_break_df = pd.read_csv(range_break_csv_file_path, encoding='utf-8')
+        range_break_tickers = range_break_df['Ticker'].tolist()
+        
+        # 各銘柄のチャートを生成（全件）
+        for i, ticker in enumerate(range_break_tickers):
+            try:
+                chart_path = generate_chart(ticker, company_names)
+                if chart_path:
+                    chart_img_paths.append(chart_path)
+                    print(f"✓ {ticker} のチャートを生成")
+                else:
+                    print(f"✗ {ticker} のチャート生成に失敗")
+            except Exception as e:
+                print(f"✗ {ticker} のチャート生成でエラー: {str(e)}")
+        
+        # チャートを結合（10銘柄ずつに分割）
+        combined_chart_paths = combine_charts(chart_img_paths, charts_per_image=10)
+        
+        if combined_chart_paths:
+            charts_images_html = ""
+            for i, chart_path in enumerate(combined_chart_paths):
+                url = upload_image_to_wordpress(chart_path)
+                if url:
+                    charts_images_html += f"<div style=\"margin: 20px 0; text-align: center;\"><img src=\"{url}\" alt=\"レンジブレイク銘柄チャート\" style=\"max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 5px;\"></div>"
+                    print(f"✓ チャート {i+1} を投稿内容に追加")
+                else:
+                    print(f"✗ チャート {i+1} の画像アップロードに失敗: {chart_path}")
+            
+            if charts_images_html:
+                charts_section = f"""
+                <h2>レンジブレイク銘柄チャート</h2>
+                <p>各銘柄の株価チャートです。過去60日間の価格推移と出来高を表示しています。10銘柄ずつに分割して表示しています。</p>
+                <p><!-- wp:st-blocks/st-slidebox --></p>
+                <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
+                <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
+                <div class="st-slidebox" data-st-slidebox-content="">
+                <div class="scroll-box">
+                {charts_images_html}
+                </div>
+                </div>
+                </div>
+                <p><!-- /wp:st-blocks/st-slidebox --></p>
+                """
+                post_content += charts_section
+                print(f"✓ 全チャートを投稿内容に追加")
+        else:
+            print("⚠ 投稿するチャートがありません")
+            
+    except Exception as e:
+        print(f"レンジブレイク銘柄のチャート生成でエラー: {e}")
     
     # WordPressに投稿を送信
     post_to_wordpress(post_title, post_content)
