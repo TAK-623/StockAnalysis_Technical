@@ -88,7 +88,7 @@ def upload_file(service, file_path, folder_id, retries=3):
     
     return file.get('id')  # アップロードされたファイルのIDを返す
 
-def convert_to_google_sheet(service, file_id, sheet_name, retries=3):
+def convert_to_google_sheet(service, file_id, sheet_name, retries=5):
     """
     アップロードしたCSVファイルをGoogleスプレッドシートに変換します
     
@@ -109,12 +109,26 @@ def convert_to_google_sheet(service, file_id, sheet_name, retries=3):
     # ファイルコピーAPIを使用して、CSVをスプレッドシートとしてコピー（変換）
     for attempt in range(retries):
         try:
+            print(f"Converting {sheet_name} to Google Sheet (attempt {attempt + 1}/{retries})...")
             drive_response = service.files().copy(fileId=file_id, body=file_metadata).execute()
+            print(f"Successfully converted {sheet_name}")
             return drive_response.get('id')
         except HttpError as error:
-            print(f"エラー発生（{attempt + 1}回目）: {error}")
-            time.sleep(2 * (attempt + 1))  # エクスポネンシャルバックオフ
-    raise Exception("Googleスプレッドシートへの変換に失敗しました")
+            print(f"HTTP Error on attempt {attempt + 1}: {error}")
+            if attempt < retries - 1:
+                wait_time = 5 * (attempt + 1)  # 5秒、10秒、15秒...と待機時間を増加
+                print(f"Waiting {wait_time} seconds before retry...")
+                time.sleep(wait_time)
+            else:
+                raise Exception(f"Googleスプレッドシートへの変換に失敗しました: {error}")
+        except Exception as e:
+            print(f"Unexpected error on attempt {attempt + 1}: {e}")
+            if attempt < retries - 1:
+                wait_time = 5 * (attempt + 1)
+                print(f"Waiting {wait_time} seconds before retry...")
+                time.sleep(wait_time)
+            else:
+                raise Exception(f"Googleスプレッドシートへの変換に失敗しました: {e}")
 
 def get_sheet_id(spreadsheet_service, spreadsheet_id, sheet_name):
     """
@@ -205,9 +219,10 @@ def main():
             token.write(creds.to_json())
 
     # Google Drive APIとGoogle Sheets APIのサービスオブジェクトを構築
-    http = google_auth_httplib2.AuthorizedHttp(creds, http=httplib2.Http(timeout=60)) # タイムアウト設定
-    drive_service = build('drive', 'v3', credentials=creds)
-    sheets_service = build('sheets', 'v4', credentials=creds)
+    # タイムアウト設定を120秒に延長し、リトライ設定も追加
+    http = google_auth_httplib2.AuthorizedHttp(creds, http=httplib2.Http(timeout=120))
+    drive_service = build('drive', 'v3', credentials=creds, cache_discovery=False)
+    sheets_service = build('sheets', 'v4', credentials=creds, cache_discovery=False)
 
     # "株"フォルダのID（Google Drive上に事前に作成済みのフォルダ）
     KABU_FOLDER_ID = '14dKMMuKFQu9cgRw-UQeY2UK_fLDnwvOz'
@@ -266,18 +281,24 @@ def main():
     
     # 各ファイルについて処理：アップロード→スプレッドシート変換（ソートなし）
     for file_path in files_to_upload_no_sort:
-        # ファイルをアップロード
-        file_id = upload_file(drive_service, file_path, yyyymmdd_folder_id)
-        
-        # ファイル名から拡張子を除いた部分をシート名として使用
-        sheet_name = os.path.splitext(os.path.basename(file_path))[0]
-        
-        # スプレッドシートに変換
-        sheet_id = convert_to_google_sheet(drive_service, file_id, sheet_name)
-        print(f"Google Sheet ID for {sheet_name}: {sheet_id}")
+        try:
+            # ファイルをアップロード
+            file_id = upload_file(drive_service, file_path, yyyymmdd_folder_id)
+            
+            # ファイル名から拡張子を除いた部分をシート名として使用
+            sheet_name = os.path.splitext(os.path.basename(file_path))[0]
+            
+            # スプレッドシートに変換
+            sheet_id = convert_to_google_sheet(drive_service, file_id, sheet_name)
+            print(f"Google Sheet ID for {sheet_name}: {sheet_id}")
 
-        # 1秒待機
-        time.sleep(5)
+            # 処理間の待機時間を10秒に延長
+            print("Waiting 10 seconds before next file...")
+            time.sleep(10)
+            
+        except Exception as e:
+            print(f"Error processing {file_path}: {e}")
+            continue
 
 # スクリプトが直接実行された場合のエントリーポイント
 if __name__ == '__main__':
