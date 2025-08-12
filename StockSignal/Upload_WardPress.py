@@ -170,8 +170,8 @@ def load_stock_data(ticker):
         # 日付列をdatetime型に変換
         df['Date'] = pd.to_datetime(df['Date'])
         
-        # 最新のデータから過去60日分を取得
-        df = df.sort_values('Date').tail(60)
+        # 最新のデータから過去6ヶ月分（全データ）を取得
+        df = df.sort_values('Date')
         
         return df[required_columns]
         
@@ -792,7 +792,7 @@ def main():
             if charts_images_html:
                 charts_section = f"""
                 <h2>レンジブレイク銘柄チャート</h2>
-                <p>各銘柄の株価チャートです。過去60日間の価格推移と出来高を表示しています。</p>
+                <p>各銘柄の株価チャートです。過去6ヶ月間の価格推移と出来高を表示しています。</p>
                 <p><!-- wp:st-blocks/st-slidebox --></p>
                 <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
                 <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
