@@ -427,10 +427,41 @@ def combine_charts(chart_paths, charts_per_image=10):
     
     return output_files
 
+def cleanup_old_charts():
+    """
+    Resultフォルダ内の古いチャート画像ファイル（.png）をすべて削除します
+    """
+    try:
+        result_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Result")
+        if os.path.exists(result_dir):
+            # .pngファイルを検索して削除
+            png_files = [f for f in os.listdir(result_dir) if f.endswith('.png')]
+            deleted_count = 0
+            
+            for png_file in png_files:
+                file_path = os.path.join(result_dir, png_file)
+                try:
+                    os.remove(file_path)
+                    deleted_count += 1
+                    print(f"古いチャートファイルを削除: {png_file}")
+                except Exception as e:
+                    print(f"ファイル削除エラー ({png_file}): {e}")
+            
+            print(f"古いチャートファイル {deleted_count} 件を削除しました")
+        else:
+            print("Resultフォルダが見つかりません")
+    except Exception as e:
+        print(f"古いチャートファイルの削除中にエラーが発生しました: {e}")
+
 def main():
     """
     メイン処理：CSVファイルの読み込み、HTML変換、WordPress投稿を実行
     """
+    # 実行開始時に古いチャートファイルを削除
+    print("古いチャートファイルの削除を開始します...")
+    cleanup_old_charts()
+    print("古いチャートファイルの削除が完了しました")
+    
     # 読み込むCSVファイルのパス
     # ここを変更：StockSignal → StockAnalysis_Technical
     macd_rsi_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_signal_result_buy.csv"   # 買いシグナルCSV
