@@ -792,7 +792,7 @@ def main():
             if charts_images_html:
                 charts_section = f"""
                 <h2>レンジブレイク銘柄チャート</h2>
-                <p>各銘柄の株価チャートです。過去60日間の価格推移と出来高を表示しています。10銘柄ずつに分割して表示しています。</p>
+                <p>各銘柄の株価チャートです。過去60日間の価格推移と出来高を表示しています。</p>
                 <p><!-- wp:st-blocks/st-slidebox --></p>
                 <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
                 <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
