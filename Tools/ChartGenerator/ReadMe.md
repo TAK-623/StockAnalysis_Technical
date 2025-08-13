@@ -50,9 +50,9 @@
 
 ### 出力ファイル
 - 形式：PNG画像
-- ファイル名：`{ticker}_{company_name}_chart_{period}.png`
+- ファイル名：`{ticker}_{company_name}_chart_{period}_{YYYYMMDD}.png`
 - 保存先：`Tools/ChartGenerator/output/`
-- 例：`9984_SoftBank_Group_Corp_chart_2y.png`
+- 例：`9984_SoftBank_Group_Corp_chart_2y_20250814.png`
 
 ## 使用方法
 
@@ -83,7 +83,7 @@ Tools/ChartGenerator/
 ├── chart_generator.py
 ├── run_chart_generator.bat
 └── output/
-    └── {ticker}_{company_name}_chart_{period}.png
+    └── {ticker}_{company_name}_chart_{period}_{YYYYMMDD}.png
 ```
 
 ### エラーハンドリング

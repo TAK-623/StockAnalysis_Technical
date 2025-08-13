@@ -134,11 +134,15 @@ class ChartGenerator:
         # レイアウト調整
         plt.tight_layout()
         
-        # ファイル保存（銘柄名を含む）
+        # ファイル保存（銘柄名と実行日を含む）
         # 銘柄名をファイル名に使用可能な形式に変換
         safe_company_name = "".join(c for c in company_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
         safe_company_name = safe_company_name.replace(' ', '_')
-        filename = f"{ticker}_{safe_company_name}_chart_{period}.png"
+        
+        # 現在の日付を取得
+        current_date = datetime.now().strftime('%Y%m%d')
+        
+        filename = f"{ticker}_{safe_company_name}_chart_{period}_{current_date}.png"
         filepath = os.path.join(self.output_dir, filename)
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         plt.close()
