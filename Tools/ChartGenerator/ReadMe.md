@@ -57,8 +57,20 @@
 ## 使用方法
 
 ### 1. バッチファイル実行
+
+#### 通常実行（初回のみ環境チェック）
 ```bash
 run_chart_generator.bat
+```
+
+#### 高速実行（環境チェックスキップ）
+```bash
+run_chart_generator_fast.bat
+```
+
+#### 環境チェック強制実行
+```bash
+run_chart_generator.bat --force-setup
 ```
 
 ### 2. 対話的入力
@@ -81,7 +93,9 @@ run_chart_generator.bat
 Tools/ChartGenerator/
 ├── ReadMe.md
 ├── chart_generator.py
-├── run_chart_generator.bat
+├── run_chart_generator.bat          # 通常実行（初回のみ環境チェック）
+├── run_chart_generator_fast.bat     # 高速実行（環境チェックスキップ）
+├── setup_completed.flag             # 環境設定完了フラグ
 └── output/
     └── {ticker}_{company_name}_chart_{period}_{YYYYMMDD}.png
 ```
