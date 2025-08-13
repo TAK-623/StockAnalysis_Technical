@@ -1,11 +1,21 @@
 """
-Google Drive APIを使用して分析結果CSVファイルをアップロードおよびスプレッドシート化するスクリプト
+Google Drive API連携モジュール - 分析結果CSVファイルの自動アップロード・スプレッドシート化
 
 このスクリプトは以下の機能を提供します：
 1. Google Driveに接続してフォルダを作成
 2. CSVファイルをGoogle Driveにアップロード
 3. アップロードしたCSVファイルをGoogleスプレッドシートに変換
 4. 必要に応じてスプレッドシートの内容を特定の列でソート
+
+主な用途：
+- 株価分析結果の自動共有
+- スプレッドシートでのデータ閲覧・分析
+- チーム内での情報共有
+- データのバックアップ
+
+使用するAPI：
+- Google Drive API: ファイルアップロード・フォルダ作成
+- Google Sheets API: スプレッドシート変換・ソート機能
 """
 from __future__ import print_function
 import os.path
@@ -28,6 +38,9 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.
 def create_folder(service, folder_name, parent_folder_id=None):
     """
     Google Drive上にフォルダを作成します
+    
+    Google Drive APIを使用して新しいフォルダを作成します。
+    親フォルダIDが指定されている場合は、その配下にフォルダを作成します。
     
     Args:
         service: Google Drive APIサービスオブジェクト
@@ -55,13 +68,20 @@ def upload_file(service, file_path, folder_id, retries=3):
     """
     ファイルをGoogle Driveの指定フォルダにアップロードします
     
+    指定されたファイルをGoogle Driveの指定フォルダにアップロードします。
+    アップロード失敗時は指定回数までリトライを行います。
+    
     Args:
         service: Google Drive APIサービスオブジェクト
         file_path: アップロードするファイルのローカルパス
         folder_id: アップロード先フォルダのID
+        retries: リトライ回数（デフォルト: 3回）
     
     Returns:
         str: アップロードされたファイルのID
+        
+    Raises:
+        Exception: アップロードに失敗した場合
     """
     # ファイルパスからファイル名のみを抽出
     file_name = os.path.basename(file_path)
@@ -75,7 +95,7 @@ def upload_file(service, file_path, folder_id, retries=3):
     # ファイルのメディアタイプ（MIME Type）を指定してアップロード用オブジェクトを作成
     media = MediaFileUpload(file_path, mimetype='text/csv')
     
-    # ファイルアップロードAPIを呼び出し
+    # ファイルアップロードAPIを呼び出し（リトライ機能付き）
     for attempt in range(retries):
         try:
             file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
@@ -92,13 +112,20 @@ def convert_to_google_sheet(service, file_id, sheet_name, retries=5):
     """
     アップロードしたCSVファイルをGoogleスプレッドシートに変換します
     
+    アップロード済みのCSVファイルをGoogleスプレッドシート形式に変換します。
+    変換失敗時は指定回数までリトライを行います。
+    
     Args:
         service: Google Drive APIサービスオブジェクト
         file_id: 変換するCSVファイルのID
         sheet_name: 作成するスプレッドシートの名前
+        retries: リトライ回数（デフォルト: 5回）
     
     Returns:
         str: 作成されたGoogleスプレッドシートのID
+        
+    Raises:
+        Exception: 変換に失敗した場合
     """
     # スプレッドシート変換のためのメタデータを設定
     file_metadata = {
@@ -134,6 +161,9 @@ def get_sheet_id(spreadsheet_service, spreadsheet_id, sheet_name):
     """
     スプレッドシート内の特定シートのIDを取得します
     
+    スプレッドシート内の指定された名前のシートのIDを取得します。
+    このIDは後続の操作（ソートなど）で使用されます。
+    
     Args:
         spreadsheet_service: Google Sheets APIサービスオブジェクト
         spreadsheet_id: スプレッドシートのID
@@ -159,6 +189,9 @@ def get_sheet_id(spreadsheet_service, spreadsheet_id, sheet_name):
 def sort_spreadsheet(spreadsheet_service, spreadsheet_id, sheet_name):
     """
     スプレッドシートの内容を特定の列でソートします
+    
+    スプレッドシートの内容を3列目（インデックス2）で昇順にソートします。
+    ヘッダー行は除外してソート対象とします。
     
     Args:
         spreadsheet_service: Google Sheets APIサービスオブジェクト
@@ -195,6 +228,13 @@ def sort_spreadsheet(spreadsheet_service, spreadsheet_id, sheet_name):
 def main():
     """
     メイン処理：Google Drive APIの認証、ファイルのアップロード、スプレッドシート変換を行います
+    
+    処理の流れ：
+    1. Google API認証（OAuth2.0）
+    2. 前日付のフォルダ作成
+    3. 分析結果CSVファイルのアップロード
+    4. スプレッドシートへの変換
+    5. 必要に応じてソート処理
     """
     creds = None
     

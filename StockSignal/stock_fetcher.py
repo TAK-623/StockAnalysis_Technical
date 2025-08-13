@@ -1,8 +1,16 @@
 """
-株価取得モジュール - yfinanceを使用して株価データを取得します
+株価取得モジュール - yfinanceを使用した株価データ取得
+
 このモジュールは、Yahoo Finance APIラッパーであるyfinanceライブラリを使用して
 複数の銘柄の株価データを効率的に取得します。APIレート制限を考慮してバッチ処理を行い、
 取得したデータはCSVファイルとして保存します。テストモードと通常モードの両方に対応しています。
+
+主な機能：
+- 複数銘柄の株価データ一括取得
+- APIレート制限対策（バッチ処理・待機時間設定）
+- 取得データのCSVファイル保存
+- エラーハンドリングとログ出力
+- テストモード/通常モードの切り替え対応
 """
 import os
 import time
@@ -21,10 +29,21 @@ def fetch_stock_data(tickers: List[str], batch_size: int = None, is_test_mode: b
     待機時間を設けています。取得したデータはCSVファイルとして保存され、
     辞書形式でも返されます。データ取得に失敗した銘柄は辞書内でNone値となります。
     
+    取得データの内容：
+    - Date: 日付
+    - Open: 始値
+    - High: 高値
+    - Low: 安値
+    - Close: 終値
+    - Volume: 出来高
+    - Dividends: 配当（該当する場合）
+    - Stock Splits: 株式分割（該当する場合）
+    
     Args:
         tickers (List[str]): 取得対象の銘柄コードのリスト
         batch_size (int, optional): 一度に処理する銘柄の数。指定がない場合はconfig.BATCH_SIZEを使用
         is_test_mode (bool, optional): テストモードで実行するかどうか。デフォルトはFalse
+                                     テストモード時は別ディレクトリにデータを保存
         
     Returns:
         Dict[str, Optional[pd.DataFrame]]: 銘柄コードをキー、株価データのDataFrameを値とする辞書
@@ -107,6 +126,8 @@ def fetch_stock_data(tickers: List[str], batch_size: int = None, is_test_mode: b
     
     # 全体の処理結果をログ出力
     # 成功・失敗した銘柄数をカウントして表示
-    logger.info(f"株価データの取得が完了しました。成功: {sum(1 for v in stock_data.values() if v is not None)}社, 失敗: {sum(1 for v in stock_data.values() if v is None)}社")
+    success_count = sum(1 for v in stock_data.values() if v is not None)
+    failure_count = sum(1 for v in stock_data.values() if v is None)
+    logger.info(f"株価データの取得が完了しました。成功: {success_count}社, 失敗: {failure_count}社")
     
     return stock_data

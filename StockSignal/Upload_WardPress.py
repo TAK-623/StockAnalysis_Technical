@@ -1,5 +1,5 @@
 """
-株価分析結果をWordPressに自動投稿するスクリプト
+WordPress投稿モジュール - 株価分析結果の自動投稿・チャート生成
 
 このスクリプトは、株価シグナル分析の結果をWordPressサイトに自動投稿します。
 主な機能：
@@ -7,6 +7,22 @@
 2. CSVデータをHTML形式のテーブルに変換
 3. WordPress REST APIを使用して記事を投稿
 4. 記事内に展開可能なブロックとして表を表示
+5. レンジブレイク銘柄のチャート自動生成
+6. 日本語フォント対応のチャート出力
+
+投稿内容：
+- 各種売買シグナル銘柄一覧
+- 強気/弱気トレンド銘柄一覧
+- レンジブレイク銘柄一覧（チャート付き）
+- 押し目銘柄一覧
+- BB-MACDシグナル銘柄一覧
+- 一目均衡表シグナル銘柄一覧
+
+使用技術：
+- WordPress REST API
+- mplfinance（チャート生成）
+- matplotlib（グラフ描画）
+- japanize_matplotlib（日本語表示）
 """
 import pandas as pd
 import requests
@@ -73,6 +89,9 @@ intro_text = """
 def read_csv_to_html_table(csv_file_path):
     """
     CSVファイルを読み込み、スタイリングされたHTML表に変換します
+    
+    指定されたCSVファイルを読み込み、数値フォーマットを調整した上で
+    HTMLテーブル形式に変換します。長いテキストに対応したスタイリングも適用します。
     
     Args:
         csv_file_path (str): 読み込むCSVファイルのパス

@@ -3,10 +3,16 @@
 
 このモジュールは以下の機能を提供します：
 1. Range_Brake.csvからレンジブレイク銘柄を読み込み
-2. 各銘柄の株価データからチャートを生成
+2. 各銘柄の株価データからローソク足チャートを生成
 3. チャートに銘柄名とティッカーを表示
-"""
+4. 移動平均線と出来高を表示
+5. 日本語フォント対応のチャート出力
 
+使用ライブラリ：
+- mplfinance: ローソク足チャート生成
+- matplotlib: グラフ描画
+- japanize_matplotlib: 日本語表示対応
+"""
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -35,11 +41,18 @@ plt.rcParams['font.family'] = ['Meiryo', 'Yu Gothic', 'MS Gothic']
 class ChartGenerator:
     """
     株価チャート生成クラス
+    
+    ブレイク銘柄の株価チャートを自動生成するためのクラスです。
+    各銘柄のテクニカル指標データからローソク足チャートを作成し、
+    移動平均線と出来高を表示します。
     """
     
     def __init__(self):
         """
-        初期化
+        初期化 - ファイルパスと銘柄名辞書の設定
+        
+        必要なディレクトリパスとファイルパスを設定し、
+        企業リストから銘柄名辞書を読み込みます。
         """
         # ファイルパスの設定
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -59,6 +72,8 @@ class ChartGenerator:
         """
         銘柄名辞書を読み込み
         
+        企業リストCSVファイルからティッカーと銘柄名のマッピングを作成します。
+        
         Returns:
             dict: ティッカーをキー、銘柄名を値とする辞書
         """
@@ -73,8 +88,11 @@ class ChartGenerator:
         """
         Range_Brake.csvからレンジブレイク銘柄のティッカーを読み込み
         
+        Range_Brake.csvファイルを読み込み、ブレイク条件を満たした銘柄の
+        ティッカーリストを取得します。
+        
         Returns:
-            list: レンジブレイク銘柄のティッカーリスト
+            list: ブレイク銘柄のティッカーリスト
         """
         try:
             df = pd.read_csv(self.range_break_file, encoding='utf-8')
@@ -87,11 +105,15 @@ class ChartGenerator:
         """
         指定されたティッカーの株価データを読み込み
         
+        テクニカル指標ディレクトリから指定銘柄のシグナルファイルを読み込み、
+        チャート生成に必要な株価データを抽出します。
+        
         Args:
             ticker (str): ティッカー
             
         Returns:
             pandas.DataFrame: 株価データ（Date, Open, High, Low, Close, Volume）
+                            データが取得できない場合はNone
         """
         try:
             signal_file = os.path.join(self.technical_signal_dir, f"{ticker}_signal.csv")
@@ -122,6 +144,10 @@ class ChartGenerator:
     def generate_chart(self, ticker):
         """
         指定されたティッカーのチャートを生成
+        
+        指定銘柄の株価データからローソク足チャートを生成し、
+        移動平均線（5日・25日）と出来高を表示します。
+        チャートには銘柄名とティッカーをタイトルとして表示します。
         
         Args:
             ticker (str): ティッカー

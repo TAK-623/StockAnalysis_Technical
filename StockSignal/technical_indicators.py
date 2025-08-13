@@ -1,10 +1,34 @@
 """
-テクニカル指標計算モジュール - 株価データから各種テクニカル指標を計算します
-TALibを使用して計算を行います
+テクニカル指標計算モジュール - 株価データから各種テクニカル指標を計算・シグナル生成
 
 このモジュールは、株価データから様々なテクニカル指標を計算し、売買シグナルを生成します。
 各テクニカル指標の計算関数と、それらを組み合わせて売買判断を行う機能を提供しています。
 また、複数銘柄の一括処理や結果の保存機能も備えています。
+
+計算対象テクニカル指標：
+1. 移動平均線（SMA）- 短期(5日)、中期(25日)、長期(75日)
+2. MACD（Moving Average Convergence Divergence）
+3. RSI（Relative Strength Index）- 短期(9日)、長期(14日)
+4. RCI（Rank Correlation Index）- 短期(9日)、長期(26日)
+5. 一目均衡表（Ichimoku Cloud）
+6. ボリンジャーバンド（Bollinger Bands）
+7. 移動平均線乖離率（MA Deviation）
+
+シグナル生成：
+- MACD-RSIシグナル
+- MACD-RCIシグナル
+- BB-MACDシグナル
+- 移動平均線乖離率シグナル
+- 一目均衡表シグナル
+
+使用ライブラリ：
+- TALib: テクニカル指標計算
+- pandas: データ処理
+- numpy: 数値計算
+
+出力ファイル：
+- latest_signal.csv: 全銘柄の最新テクニカル指標値
+- 各銘柄の個別シグナルファイル（{ticker}_signal.csv）
 """
 import os
 import pandas as pd
@@ -45,6 +69,9 @@ def calculate_moving_averages(df: pd.DataFrame) -> pd.DataFrame:
 def calculate_trading_signals_MA_Deviation(df: pd.DataFrame) -> pd.DataFrame:
     """
     移動平均線乖離率に基づく取引シグナル(Buy/Sell)を計算します
+    
+    移動平均線からの乖離率を計算し、売られすぎ・買われすぎの状態を判定して
+    売買シグナルを生成します。
     
     条件：
     Buy シグナル:

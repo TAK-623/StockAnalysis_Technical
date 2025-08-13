@@ -1,8 +1,27 @@
 """
-シグナル抽出モジュール - latest_signal.csvから買い/売りシグナルを抽出してCSVファイルに出力します
+シグナル抽出モジュール - テクニカル指標から売買シグナルを抽出・分類
+
 このモジュールは、テクニカル分析によって生成されたシグナル情報から、
 特に注目すべき「買い」と「売り」シグナルを抽出し、個別のCSVファイルとして
 整理・出力する機能を提供します。単独実行も、他のモジュールからの呼び出しも可能です。
+
+抽出対象シグナル：
+1. MACD-RSIシグナル（MACDとRSIの組み合わせ）
+2. MACD-RCIシグナル（MACDとRCIの組み合わせ）
+3. BB-MACDシグナル（ボリンジャーバンドとMACDの組み合わせ）
+4. 複合シグナル（複数の指標が一致する場合）
+
+追加条件：
+- 買いシグナル：CloseがHighとLowの中間よりも上にある（上髭が短い銘柄）
+- 売りシグナル：CloseがHighとLowの中間よりも下にある（下髭が短い銘柄）
+
+出力ファイル：
+- macd_rsi_signal_result_buy.csv: MACD-RSI買いシグナル
+- macd_rsi_signal_result_sell.csv: MACD-RSI売りシグナル
+- macd_rci_signal_result_buy.csv: MACD-RCI買いシグナル
+- macd_rci_signal_result_sell.csv: MACD-RCI売りシグナル
+- macd_rsi_rci_signal_result_buy.csv: 複合買いシグナル
+- macd_rsi_rci_signal_result_sell.csv: 複合売りシグナル
 """
 import os
 import pandas as pd
@@ -19,12 +38,19 @@ def extract_signals(is_test_mode: bool = False) -> bool:
     また、両方のシグナルが一致している銘柄も別途抽出します。
     テストモードでは、テスト用ディレクトリのデータを使用します。
     
-    追加条件：
+    抽出条件：
     - 買いシグナル：CloseがHighとLowの中間よりも上にある（上髭が短い銘柄）
     - 売りシグナル：CloseがHighとLowの中間よりも下にある（下髭が短い銘柄）
     
+    処理の流れ：
+    1. latest_signal.csvファイルの読み込み
+    2. 必要なカラムの存在確認
+    3. 各シグナルタイプごとの抽出処理
+    4. 結果のCSVファイル出力
+    
     Args:
         is_test_mode (bool): テストモードの場合はTrue、通常モードの場合はFalse
+                            テストモード時は別ディレクトリのデータを使用
         
     Returns:
         bool: 処理が成功した場合はTrue、エラーが発生した場合はFalse

@@ -1,7 +1,11 @@
 """
-メインスクリプト - データ取得処理とチャート生成を実行します
-このスクリプトは株価データの取得、分析、シグナル抽出、チャート生成を行うメインエントリーポイントです
-WordPress投稿はUpload_WardPress.pyで統合的に実行されます
+メインスクリプト - 株価データ取得・分析・シグナル抽出の統合実行エントリーポイント
+
+このスクリプトは株価データの取得、テクニカル指標の計算、売買シグナルの抽出、
+レンジブレイク銘柄の検出、強気/弱気トレンド銘柄の抽出、押し目銘柄の検出、
+BB-MACDシグナル抽出、一目均衡表シグナル抽出までの一連の処理を統合的に実行します。
+
+WordPress投稿とチャート生成は別スクリプト（Upload_WardPress.py）で実行されます。
 """
 import os
 import sys
@@ -23,17 +27,28 @@ from technical_indicators import extract_BB_MACD_signals, get_BB_MACD_signal_sum
 from extract_signals import extract_signals, extract_strong_buying_trend, extract_strong_selling_trend, extract_all_ichimoku_signals, extract_push_mark_signals  # 売買シグナルとトレンド銘柄を抽出する関数
 from range_breakout import identify_range_breakouts  # レンジブレイク銘柄抽出関数
 
-# チャート生成機能はUpload_WardPress.pyに統合済み
-
 def main():
     """
-    メイン処理
-    コマンドライン引数の解析、企業リストの読み込み、株価データの取得、
-    テクニカル指標の計算、売買シグナルの抽出、チャート生成までの一連の処理を実行します
+    メイン処理 - 株価データ取得からシグナル抽出までの一連の処理を実行
+    
+    処理の流れ：
+    1. コマンドライン引数の解析（テストモード判定）
+    2. ロガーの設定
+    3. 企業リストの読み込み
+    4. 株価データの取得（yfinance API使用）
+    5. テクニカル指標の計算（移動平均、RSI、MACD、RCI、一目均衡表など）
+    6. 売買シグナルの抽出（MACD-RSI、MACD-RCI、BB-MACD）
+    7. レンジブレイク銘柄の検出
+    8. 強気/弱気トレンド銘柄の抽出
+    9. 押し目銘柄の検出
+    10. 一目均衡表シグナルの抽出
+    
+    Returns:
+        int: 成功時は0、エラー時は1
     """
     # コマンドライン引数の解析 - テストモードのフラグを受け取る
-    parser = argparse.ArgumentParser(description='株価データ取得ツール')
-    parser.add_argument('--test', action='store_true', help='テストモードで実行')
+    parser = argparse.ArgumentParser(description='株価データ取得・分析・シグナル抽出ツール')
+    parser.add_argument('--test', action='store_true', help='テストモードで実行（少数銘柄で動作確認）')
 
     args = parser.parse_args()
     
@@ -43,7 +58,7 @@ def main():
     # ロガーの設定（テストモードに応じた設定）
     # テストモードではより詳細なログレベルや別のログファイルを使用する可能性がある
     logger = setup_logger(is_test_mode)
-    logger.info("=== 株価データ取得ツール 開始 ===")
+    logger.info("=== 株価データ取得・分析・シグナル抽出ツール 開始 ===")
     logger.info(f"実行モード: {'テスト' if is_test_mode else '通常'}")
     
     try:
@@ -64,7 +79,7 @@ def main():
         logger.info("テクニカル指標の計算を開始します...")
         
         try:
-            # 各銘柄に対してテクニカル指標（移動平均、RSI、MACDなど）を計算
+            # 各銘柄に対してテクニカル指標（移動平均、RSI、MACD、RCI、一目均衡表など）を計算
             signal_results = calculate_signals(tickers, is_test_mode)
             logger.info("テクニカル指標の計算が完了しました。")
             
@@ -72,7 +87,6 @@ def main():
             logger.info("Buy/Sellシグナルの抽出を開始します...")
             extract_success = extract_signals(is_test_mode)
             
-            # main関数内のextract_signals関数の後に追加
             # シグナル抽出後にレンジブレイク銘柄の抽出処理を実行
             logger.info("レンジブレイク銘柄の抽出を開始します...")
             breakout_success = identify_range_breakouts(is_test_mode)
@@ -151,7 +165,7 @@ def main():
         logger.info("チャート生成はUpload_WardPress.pyで実行されます")
         
         # 全処理の完了を記録して正常終了
-        logger.info("=== 株価データ取得ツール 終了 ===")
+        logger.info("=== 株価データ取得・分析・シグナル抽出ツール 終了 ===")
         return 0
         
     except Exception as e:
