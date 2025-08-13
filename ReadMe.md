@@ -10,11 +10,12 @@
 4. 生成したシグナルデータをCSVファイルとして保存
 5. CSVファイルをGoogleドライブにアップロードし、Googleスプレッドシートに変換
 6. 売買シグナル情報をWordPressサイトに自動投稿
+7. レンジブレイク銘柄のチャート自動生成とWordPress投稿
 
 ## フォルダ構成
 
 ```
-└── StockSignal_Technical/ (ルートディレクトリ)
+└── StockAnalysis_Technical/ (ルートディレクトリ)
     ├── StockSignal
     │   ├── main.py                                     # メイン実行スクリプト
     │   ├── config.py                                   # システム設定ファイル
@@ -22,11 +23,19 @@
     │   ├── stock_fetcher.py                            # 株価データ取得モジュール
     │   ├── technical_indicators.py                     # 各種インジケーター演算＆売買シグナル生成モジュール
     │   ├── extract_signals.py                          # 売買シグナル抽出モジュール
+    │   ├── range_breakout.py                           # レンジブレイク銘柄検出モジュール
+    │   ├── chart_generator.py                          # チャート生成モジュール
     │   ├── Upload_csv.py                               # Googleドライブアップロードモジュール
     │   ├── Upload_WardPress.py                         # WordPress投稿モジュール
+    │   ├── Upload_WardPress_Ichimoku.py                # 一目均衡表WordPress投稿モジュール
+    │   ├── test_candlestick.py                         # ローソク足チャートテストモジュール
     │   ├── run_stock_signal.bat                        # 通常モード実行バッチファイル
     │   ├── run_stock_signal_test.bat                   # テストモード実行バッチファイル
     │   ├── run_stock_signal_no-tweet.bat               # 最後にツイートをしない通常モード実行バッチファイル
+    │   ├── run_chart_generation.bat                    # チャート生成実行バッチファイル
+    │   ├── requirements.txt                            # 必要な依存関係
+    │   ├── README_chart_feature.md                     # チャート機能説明書
+    │   ├── README_chart_generation.md                  # チャート生成説明書
     │   │
     │   ├── TechnicalSignal/                            # テクニカル指標分析結果
     │   │   ├── [ticker]_signal.csv                     # 各銘柄のシグナル状態CSV
@@ -40,8 +49,13 @@
     │   │   └── company_list_20250228_test.csv          # テスト用対象企業リスト
     │   │
     │   ├── Result/                                     # 分析結果出力ディレクトリ
-    │   │   ├── signal_result_buy.csv                   # 買いシグナル銘柄リスト WardPress・GoogleDriveにアップ
-    │   │   ├── signal_result_sell.csv                  # 売りシグナル銘柄リスト WardPress・GoogleDriveにアップ
+    │   │   ├── Range_Brake.csv                         # レンジブレイク銘柄リスト WardPress・GoogleDriveにアップ
+    │   │   ├── macd_rsi_signal_result_buy.csv          # MACD-RSI買いシグナル銘柄リスト WardPress・GoogleDriveにアップ
+    │   │   ├── macd_rsi_signal_result_sell.csv         # MACD-RSI売りシグナル銘柄リスト WardPress・GoogleDriveにアップ
+    │   │   ├── macd_rci_signal_result_buy.csv          # MACD-RCI買いシグナル銘柄リスト WardPress・GoogleDriveにアップ
+    │   │   ├── macd_rci_signal_result_sell.csv         # MACD-RCI売りシグナル銘柄リスト WardPress・GoogleDriveにアップ
+    │   │   ├── macd_rsi_rci_signal_result_buy.csv      # 複合買いシグナル銘柄リスト WardPress・GoogleDriveにアップ
+    │   │   ├── macd_rsi_rci_signal_result_sell.csv     # 複合売りシグナル銘柄リスト WardPress・GoogleDriveにアップ
     │   │   ├── strong_buying_trend.csv                 # 強気買いトレンド銘柄リスト WardPress・GoogleDriveにアップ
     │   │   ├── strong_selling_trend.csv                # 強気売りトレンド銘柄リスト WardPress・GoogleDriveにアップ
     │   │   ├── push_mark.csv                           # 押し目銘柄リスト
@@ -51,13 +65,14 @@
     │   │   ├── ichimoku_DC_upper_cloud.csv             # 雲の上で基準線・転換線のデッドクロスが起きた銘柄リスト
     │   │   ├── ichimoku_GC_under_cloud.csv             # 雲の下で基準線・転換線のゴールデンクロスが起きた銘柄リスト
     │   │   ├── ichimoku_GC_upper_cloud.csv             # 雲の上で基準線・転換線のゴールデンクロスが起きた銘柄リスト
-    │   │   ├── sanyaku_anten.csv                       # 三役好転の状態の銘柄リスト
-    │   │   └── sanyaku_kouten.csv                      # 三役暗転の状態の銘柄リスト
+    │   │   ├── sanyaku_kouten.csv                      # 三役好転の状態の銘柄リスト
+    │   │   ├── sanyaku_anten.csv                       # 三役暗転の状態の銘柄リスト
+    │   │   └── [ticker]_chart.png                      # レンジブレイク銘柄のチャート画像
     │   │
-    │   └── Test-BatchFiles/                                      # テスト用の単体ファイル実行バッチ
-    │       ├── single-test_run_Upload_csv.bat                    # single-test_run_Upload_csv.pyの実行
-    │       ├── single-test_run_Upload_WardPress.bat              # single-test_run_Upload_WardPress.pyの実行
-    │       └── single-test_run_Upload_WardPress_Ichimoku.bat     # ↑に一目均衡表情報を追加したバッチファイル
+    │   └── Single-BatchFiles/                          # 単体ファイル実行バッチ
+    │       ├── single_run_Upload_csv.bat               # Upload_csv.pyの単体実行
+    │       ├── single_run_Upload_WardPress.bat         # Upload_WardPress.pyの単体実行
+    │       └── single_run_Upload_WardPress_Ichimoku.bat # Upload_WardPress_Ichimoku.pyの単体実行
     │
     ├── VolumeAnalysis/                                 # 出来高移動平均の算出
     │   ├── main.py                                     # メイン実行スクリプト
@@ -81,7 +96,7 @@
     │
     ├── credentials.json                                # Google API認証情報
     ├── token.json                                      # Google API認証トークン
-    ├── company_list_20250228.csv                       # 分析対象企業リスト
+    ├── company_list_20250426.csv                       # 分析対象企業リスト
     ├── ReadMe.md                                       # ドキュメント
     │
     ├── Data/                                           # 株価データ保存ディレクトリ
@@ -94,6 +109,12 @@
         ├── MakeCompanyList/                            # CompanyListの整形ツール
         │   ├── make_company_indusrty_list.bat          # Pythonスクリプト実行用のバッチファイル
         │   └── make_company_indusrty_list.py           # 整形実行スクリプト
+        │
+        ├── ChartGenerator/                             # チャート生成ツール
+        │   ├── chart_generator.py                      # チャート生成スクリプト
+        │   ├── requirements.txt                        # 必要な依存関係
+        │   ├── ReadMe.md                               # チャート生成ツール説明書
+        │   └── output/                                 # 生成されたチャート画像
         │
         └── Buy-Sell_Simulation/                        # 売買シグナルの評価ツール
             ├── InputData/                              # ツールの入力データ格納フォルダ
@@ -113,12 +134,15 @@
 
 - `stock_fetcher.py` - Yahoo Finance APIを使用して株価データを取得
 - `technical_indicators.py` - テクニカル指標の計算処理、売買シグナルの生成と分析、シグナル変化の検出処理
+- `range_breakout.py` - レンジブレイク銘柄の検出処理
 
 ### データ出力モジュール
 
 - `extract_signals.py` - 買い/売りシグナルの抽出と保存
+- `chart_generator.py` - レンジブレイク銘柄のチャート生成
 - `Upload_csv.py` - 分析結果をGoogleドライブにアップロード
 - `Upload_WardPress.py` - 分析結果をWordPressに投稿
+- `Upload_WardPress_Ichimoku.py` - 一目均衡表分析結果をWordPressに投稿
 
 ### 共通・設定モジュール
 
@@ -135,8 +159,15 @@ run_stock_signal.bat
 
 このコマンドを実行すると以下の処理が順番に行われる：
 1. 株価データの取得と分析
-2. WordPressへの自動投稿
-3. Googleドライブへのアップロード
+2. テクニカル指標の計算
+3. 売買シグナルの抽出
+4. レンジブレイク銘柄の検出
+5. 強気/弱気トレンド銘柄の抽出
+6. 押し目銘柄の検出
+7. BB-MACDシグナルの抽出
+8. 一目均衡表シグナルの抽出
+9. WordPressへの自動投稿
+10. Googleドライブへのアップロード
 
 ### テストモード実行
 
@@ -146,6 +177,14 @@ run_stock_signal_test.bat
 
 テストモードでは限定された銘柄のみを対象に処理を行い、結果は別のディレクトリに保存される。
 
+### チャート生成のみ実行
+
+```
+run_chart_generation.bat
+```
+
+レンジブレイク銘柄のチャート生成のみを実行する場合に使用。
+
 ## 設定
 
 システムの設定は `config.py` で管理されている：
@@ -154,6 +193,7 @@ run_stock_signal_test.bat
 - 入出力ファイル設定
 - 株価データ取得設定（期間、バッチサイズなど）
 - テクニカル指標パラメータ設定
+- レンジブレイク検出設定
 
 ## テクニカル指標
 
@@ -324,12 +364,14 @@ run_stock_signal_test.bat
       - 最新のMACDはMACDシグナルを下回っている
       - 2営業日前のMACDはMACDシグナルを上回っている →1営業日内にMACDのデッドクロスが起きている
 
-9. **ブレイク銘柄**
-   - **条件**
-      - 最新の終値が過去3か月間の最高値を上回っている
+9. **レンジブレイク銘柄**
+   - **条件**:
+      - 最新の終値が過去3か月間の前日までの最高値を上回っている
       - 最新の出来高が過去3か月間の出来高平均値の1.5倍よりも多い
-      - 終値が高値と安値の中間値よりも高い
+      - 終値が高値と安値の中間値よりも高い（上髭が短い）
       - 最新の出来高が10万以上
+      - 陽線である（終値が始値を上回る）
+   - **出力ファイル**: `Range_Brake.csv`
 
 ### 追加の抽出条件
 
@@ -340,6 +382,24 @@ extract_signals.py を使用して売買シグナルを抽出する際には、�
   
 - **売りシグナル追加条件**:
   - CloseがHighとLowの中間よりも下にある（下髭が短い銘柄）
+
+## チャート生成機能
+
+### レンジブレイク銘柄チャート生成
+
+- **対象銘柄**: Range_Brake.csvに記載されたレンジブレイク銘柄（最大10銘柄）
+- **チャート内容**: 過去60日間の価格推移と出来高
+- **表示要素**:
+  - ローソク足チャート（終値、高値・安値の範囲）
+  - 5日・25日移動平均線
+  - 出来高
+  - 銘柄名とティッカーをタイトルに表示
+
+### 技術仕様
+- **画像形式**: PNG（高解像度300dpi）
+- **埋め込み方式**: Base64エンコードでHTMLに直接埋め込み
+- **日本語対応**: japanize-matplotlibで日本語フォント対応
+- **使用ライブラリ**: mplfinance、matplotlib、japanize-matplotlib
 
 ## Google API認証設定
 
@@ -359,6 +419,14 @@ WordPressへの投稿には以下の情報が使用される：
 - サイトURL: https://www.takstorage.site/
 - 認証情報: アプリケーションパスワード方式
 
+### 投稿内容
+- 各種売買シグナル銘柄一覧
+- 強気/弱気トレンド銘柄一覧
+- レンジブレイク銘柄一覧（チャート付き）
+- 押し目銘柄一覧
+- BB-MACDシグナル銘柄一覧
+- 一目均衡表シグナル銘柄一覧
+
 ## TA-Libの更新方法
 
 テクニカル指標計算に使用しているTA-Libを更新する場合：
@@ -371,7 +439,7 @@ WordPressへの投稿には以下の情報が使用される：
 
 ## 対象企業リスト
 
-分析対象の企業リストは `company_list_20250228.csv` に含まれており、約3800社の東証上場企業が登録されている。
+分析対象の企業リストは `company_list_20250426.csv` に含まれており、約3800社の東証上場企業が登録されている。
 東証一部上場企業のリストは下記リンク先から取得する。
 https://www.jpx.co.jp/markets/statistics-equities/misc/01.html
 
@@ -391,7 +459,7 @@ https://www.jpx.co.jp/markets/statistics-equities/misc/01.html
 以下のようなCSVファイルに対応しています：
 1. 買いシグナル：`macd_rsi_signal_result_buy.csv`, `macd_rci_signal_result_buy.csv`
 2. 売りシグナル：`macd_rsi_signal_result_sell.csv`, `macd_rci_signal_result_sell.csv`
-3. レンジブレイク：`range_break.csv` または `Range_Brake.csv`
+3. レンジブレイク：`Range_Brake.csv`
 4. 強いトレンド銘柄：`strong_buying_trend.csv`, `strong_selling_trend.csv`
 5. BB-MACD売買シグナル：`bb_macd_buy_signals.csv`, `bb_macd_sell_signals.csv`
 6. 押し目銘柄：`push_mark.csv`
