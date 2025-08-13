@@ -89,11 +89,21 @@ class ChartGenerator:
             if data.empty:
                 raise ValueError(f"Failed to fetch data: {ticker}")
             
-            return data
+            # 銘柄名を取得
+            try:
+                company_name = stock.info.get('longName', '')
+                if not company_name:
+                    company_name = stock.info.get('shortName', '')
+                if not company_name:
+                    company_name = f"Ticker_{ticker}"
+            except:
+                company_name = f"Ticker_{ticker}"
+            
+            return data, company_name
             
         except Exception as e:
             print(f"Error: Failed to fetch data - {e}")
-            return None
+            return None, None
     
     def calculate_moving_averages(self, data):
         """移動平均を計算"""
@@ -103,7 +113,7 @@ class ChartGenerator:
         data['MA200'] = data['Close'].rolling(window=200).mean()
         return data
     
-    def create_chart(self, data, ticker, period):
+    def create_chart(self, data, ticker, period, company_name):
         """チャートを作成"""
         # 移動平均を計算
         data = self.calculate_moving_averages(data)
@@ -113,7 +123,7 @@ class ChartGenerator:
                                       gridspec_kw={'height_ratios': [3, 1]})
         
         # ローソク足チャート
-        self.plot_candlestick(ax1, data, ticker)
+        self.plot_candlestick(ax1, data, ticker, company_name)
         
         # 移動平均線
         self.plot_moving_averages(ax1, data)
@@ -124,8 +134,11 @@ class ChartGenerator:
         # レイアウト調整
         plt.tight_layout()
         
-        # ファイル保存
-        filename = f"{ticker}_chart_{period}.png"
+        # ファイル保存（銘柄名を含む）
+        # 銘柄名をファイル名に使用可能な形式に変換
+        safe_company_name = "".join(c for c in company_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        safe_company_name = safe_company_name.replace(' ', '_')
+        filename = f"{ticker}_{safe_company_name}_chart_{period}.png"
         filepath = os.path.join(self.output_dir, filename)
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         plt.close()
@@ -133,7 +146,7 @@ class ChartGenerator:
         print(f"Chart saved: {filepath}")
         return filepath
     
-    def plot_candlestick(self, ax, data, ticker):
+    def plot_candlestick(self, ax, data, ticker, company_name):
         """ローソク足を描画"""
         # 上昇・下降の判定
         up = data[data['Close'] >= data['Open']]
@@ -157,7 +170,7 @@ class ChartGenerator:
             ax.bar(down.index, down['Low'] - down['Close'], bottom=down['Close'], 
                    color='blue', alpha=0.7, width=0.1)
         
-        ax.set_title(f'{ticker} Stock Price Chart', fontsize=16, fontweight='bold')
+        ax.set_title(f'{ticker} - {company_name} Stock Price Chart', fontsize=16, fontweight='bold')
         ax.set_ylabel('Price (JPY)', fontsize=12)
         ax.grid(True, alpha=0.3)
         
@@ -208,15 +221,16 @@ class ChartGenerator:
             ticker, period = self.get_user_input()
             
             # データ取得
-            data = self.fetch_stock_data(ticker, period)
+            data, company_name = self.fetch_stock_data(ticker, period)
             if data is None:
                 return False
             
             # チャート作成
-            filepath = self.create_chart(data, ticker, period)
+            filepath = self.create_chart(data, ticker, period, company_name)
             
             print(f"\n=== Completed ===")
             print(f"Ticker: {ticker}")
+            print(f"Company: {company_name}")
             print(f"Period: {self.periods[period]}")
             print(f"Saved to: {filepath}")
             
