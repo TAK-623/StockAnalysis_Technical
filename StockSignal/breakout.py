@@ -14,12 +14,61 @@
 import os
 import pandas as pd
 import logging
-from typing import List, Dict, Tuple
+import time
+from typing import List, Dict, Tuple, Optional
 from datetime import datetime, timedelta
 
 # 設定値をインポート
 import config
 from data_loader import load_company_list
+
+# yfinanceのインポート（ROE取得用）
+try:
+    import yfinance as yf
+    YFINANCE_AVAILABLE = True
+except ImportError:
+    YFINANCE_AVAILABLE = False
+
+def get_roe_for_ticker(ticker: str, logger: logging.Logger) -> Optional[float]:
+    """
+    指定された銘柄のROE情報をyfinanceから取得
+    
+    Args:
+        ticker: 銘柄コード（例: "7203.T"）
+        logger: ロガーオブジェクト
+    
+    Returns:
+        ROE値（パーセンテージ）、取得できない場合はNone
+    """
+    if not YFINANCE_AVAILABLE:
+        logger.warning("yfinanceライブラリが利用できません。ROE情報は取得されません。")
+        return None
+    
+    try:
+        # 日本株の場合は.Tを付ける
+        if not ticker.endswith('.T'):
+            ticker_with_suffix = f"{ticker}.T"
+        else:
+            ticker_with_suffix = ticker
+        
+        # yfinanceでティッカー情報を取得
+        stock = yf.Ticker(ticker_with_suffix)
+        
+        # 基本情報からROEを直接取得
+        info = stock.info
+        roe = info.get('returnOnEquity')
+        
+        if roe is not None:
+            # 小数形式をパーセンテージに変換
+            roe_percentage = roe * 100
+            return round(roe_percentage, 2)
+        else:
+            logger.warning(f"{ticker}: ROE情報が取得できませんでした")
+            return None
+            
+    except Exception as e:
+        logger.error(f"{ticker}: ROE取得中にエラーが発生しました: {str(e)}")
+        return None
 
 def identify_breakouts(is_test_mode: bool = False) -> bool:
     """
@@ -234,10 +283,41 @@ def identify_breakouts(is_test_mode: bool = False) -> bool:
             if 'BB上限(+2σ)' in result_df.columns:
                 result_df['BB上限(+2σ)'] = result_df['BB上限(+2σ)'].round(2)
             
-            # 列の順序を調整（Close列の右隣にBB上限列を配置）
+            # ROE情報を取得して追加
+            if YFINANCE_AVAILABLE and not result_df.empty:
+                logger.info("ROE情報の取得を開始します...")
+                result_df['ROE(%)'] = None
+                
+                for index, row in result_df.iterrows():
+                    ticker = str(row['Ticker'])
+                    company = row['Company']
+                    
+                    logger.info(f"ROE取得中 ({index + 1}/{len(result_df)}): {ticker} - {company}")
+                    
+                    # ROE情報を取得
+                    roe = get_roe_for_ticker(ticker, logger)
+                    
+                    if roe is not None:
+                        result_df.at[index, 'ROE(%)'] = roe
+                        logger.info(f"  ROE: {roe}%")
+                    else:
+                        logger.warning(f"  ROE取得失敗")
+                    
+                    # API制限を避けるため少し待機
+                    time.sleep(0.5)
+                
+                # ROE取得成功数をカウント
+                roe_success_count = result_df['ROE(%)'].notna().sum()
+                logger.info(f"ROE情報の取得が完了しました。成功: {roe_success_count}/{len(result_df)} 銘柄")
+            
+            # 列の順序を調整（終値の右隣にROEとBB上限列を配置）
             columns_order = ['Ticker', 'Company', 'テーマ', '終値']
             
-            # BB上限列がある場合は終値の右隣に配置
+            # ROE列がある場合は終値の右隣に配置
+            if 'ROE(%)' in result_df.columns:
+                columns_order.append('ROE(%)')
+            
+            # BB上限列がある場合はROEの右隣に配置
             if 'BB上限(+2σ)' in result_df.columns:
                 columns_order.append('BB上限(+2σ)')
             

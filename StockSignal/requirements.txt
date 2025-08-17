@@ -5,3 +5,4 @@ requests>=2.25.0
 numpy>=1.21.0
 mplfinance>=0.12.9
 Pillow>=9.0.0
+yfinance>=0.2.0
