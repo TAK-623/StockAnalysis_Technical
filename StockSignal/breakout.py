@@ -1,5 +1,5 @@
 """
-レンジブレイク検出モジュール - レンジ相場をブレイクした銘柄の抽出
+ブレイク検出モジュール - ブレイクした銘柄の抽出
 
 このモジュールは下記の条件に一致する銘柄を抽出します:
 1. 最新のCloseが直近3か月の「前日までの」最高値を更新している
@@ -8,7 +8,7 @@
 4. 最新のClose値が、HighとLowの中間（中央値）よりも高い（上髭が短い）
 5. 陽線であること（終値が始値を上回っている）
 
-これらの条件を満たす銘柄は、レンジ相場からのブレイクアウトを示す
+これらの条件を満たす銘柄は、ブレイクアウトを示す
 重要なシグナルとして分析に使用されます。
 """
 import os
@@ -21,11 +21,11 @@ from datetime import datetime, timedelta
 import config
 from data_loader import load_company_list
 
-def identify_range_breakouts(is_test_mode: bool = False) -> bool:
+def identify_breakouts(is_test_mode: bool = False) -> bool:
     """
-    レンジ相場をブレイクした銘柄を抽出する関数
+    ブレイクした銘柄を抽出する関数
     
-    各銘柄のテクニカル指標データを分析し、レンジブレイク条件を満たす銘柄を
+    各銘柄のテクニカル指標データを分析し、ブレイク条件を満たす銘柄を
     検出してCSVファイルに出力します。検出された銘柄は株価チャート生成の
     対象としても使用されます。
     
@@ -49,7 +49,7 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
     """
     # ロガーの取得
     logger = logging.getLogger(__name__)
-    logger.info("レンジブレイク銘柄の抽出処理を開始します...")
+    logger.info("ブレイク銘柄の抽出処理を開始します...")
     
     try:
         # 入出力ディレクトリの設定（テストモードに応じて切り替え）
@@ -193,7 +193,7 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
                     
                     breakout_stocks.append(breakout_result)
                     
-                    logger.info(f"レンジブレイク銘柄を検出: {ticker} - {company_name} ({theme})")
+                    logger.info(f"ブレイク銘柄を検出: {ticker} - {company_name} ({theme})")
                 
             except Exception as e:
                 logger.error(f"{csv_file}の処理中にエラーが発生しました: {str(e)}")
@@ -249,16 +249,16 @@ def identify_range_breakouts(is_test_mode: bool = False) -> bool:
             result_df = result_df[available_columns]
         
         # 結果をCSVに保存
-        output_path = os.path.join(result_dir, "Range_Brake.csv")
+        output_path = os.path.join(result_dir, "Breakout.csv")
         result_df.to_csv(output_path, index=False, encoding='utf-8-sig')
         
-        logger.info(f"レンジブレイク銘柄の抽出が完了しました。検出数: {len(result_df)}")
+        logger.info(f"ブレイク銘柄の抽出が完了しました。検出数: {len(result_df)}")
         logger.info(f"結果ファイルの保存先: {output_path}")
         
         return True
         
     except Exception as e:
-        logger.error(f"レンジブレイク銘柄の抽出処理中にエラーが発生しました: {str(e)}")
+        logger.error(f"ブレイク銘柄の抽出処理中にエラーが発生しました: {str(e)}")
         return False
 
 
@@ -267,7 +267,7 @@ def load_company_info_map(is_test_mode: bool = False) -> Dict[str, Dict[str, str
     銘柄コードから会社名とテーマへのマッピングを取得します
     
     企業リストCSVファイルを読み込み、銘柄コードをキーとして
-    会社名とテーマ情報の辞書を作成します。この情報はレンジブレイク銘柄の
+    会社名とテーマ情報の辞書を作成します。この情報はブレイク銘柄の
     結果ファイルに含めるために使用されます。
     
     Args:
@@ -331,4 +331,4 @@ if __name__ == "__main__":
     logger = setup_logger(False)
     
     # 関数のテスト実行
-    identify_range_breakouts()
+    identify_breakouts()

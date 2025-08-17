@@ -50,7 +50,7 @@ python stock_evaluation.py 20240501
 
 1. 買いシグナル：`macd_rci_signal_result_buy.csv`
 2. 売りシグナル：`macd_rci_signal_result_sell.csv`
-3. レンジブレイク：`range_break.csv` または `Range_Brake.csv`
+3. ブレイク：`range_break.csv` または `Range_Brake.csv` または `Breakout.csv`
 
 CSVファイルは少なくとも以下の列を含む必要があります：
 - Ticker：銘柄コード
@@ -81,7 +81,7 @@ CSVファイルは少なくとも以下の列を含む必要があります：
 
 ## 特別なケース
 
-- `range_break.csv` または `Range_Brake.csv` の場合、出力ファイル名は統一して `range_break_eval.csv` と `summary_range_break.csv` になります。
+- `range_break.csv` または `Range_Brake.csv` または `Breakout.csv` の場合、出力ファイル名は統一して `breakout_eval.csv` と `summary_breakout.csv` になります。
 - 買いシグナルはプラスになることが正解、売りシグナルはマイナスになることが正解として判定されます。
 
 ## コンソール出力

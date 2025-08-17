@@ -2,7 +2,7 @@
 株価チャート生成モジュール
 
 このモジュールは以下の機能を提供します：
-1. Range_Brake.csvからレンジブレイク銘柄を読み込み
+1. Breakout.csvからブレイク銘柄を読み込み
 2. 各銘柄の株価データからローソク足チャートを生成
 3. チャートに銘柄名とティッカーを表示
 4. 移動平均線と出来高を表示
@@ -56,7 +56,7 @@ class ChartGenerator:
         """
         # ファイルパスの設定
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
-        self.range_break_file = os.path.join(self.base_dir, "Result", "Range_Brake.csv")
+        self.breakout_file = os.path.join(self.base_dir, "Result", "Breakout.csv")
         self.technical_signal_dir = os.path.join(self.base_dir, "TechnicalSignal")
         self.result_dir = os.path.join(self.base_dir, "Result")
         self.company_list_file = os.path.join(os.path.dirname(self.base_dir), "company_list_20250426.csv")
@@ -84,21 +84,21 @@ class ChartGenerator:
             print(f"銘柄名ファイルの読み込みエラー: {e}")
             return {}
     
-    def load_range_break_tickers(self):
+    def load_breakout_tickers(self):
         """
-        Range_Brake.csvからレンジブレイク銘柄のティッカーを読み込み
+        Breakout.csvからブレイク銘柄のティッカーを読み込み
         
-        Range_Brake.csvファイルを読み込み、ブレイク条件を満たした銘柄の
+        Breakout.csvファイルを読み込み、ブレイク条件を満たした銘柄の
         ティッカーリストを取得します。
         
         Returns:
             list: ブレイク銘柄のティッカーリスト
         """
         try:
-            df = pd.read_csv(self.range_break_file, encoding='utf-8')
+            df = pd.read_csv(self.breakout_file, encoding='utf-8-sig')
             return df['Ticker'].tolist()
         except Exception as e:
-            print(f"Range_Brake.csvの読み込みエラー: {e}")
+            print(f"Breakout.csvの読み込みエラー: {e}")
             return []
     
     def load_stock_data(self, ticker):

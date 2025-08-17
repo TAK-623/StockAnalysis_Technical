@@ -25,7 +25,7 @@ from stock_fetcher import fetch_stock_data  # 株価データを取得する関�
 from technical_indicators import calculate_signals  # テクニカル指標を計算する関数
 from technical_indicators import extract_BB_MACD_signals, get_BB_MACD_signal_summary
 from extract_signals import extract_signals, extract_strong_buying_trend, extract_strong_selling_trend, extract_all_ichimoku_signals, extract_push_mark_signals  # 売買シグナルとトレンド銘柄を抽出する関数
-from range_breakout import identify_range_breakouts  # レンジブレイク銘柄抽出関数
+from breakout import identify_breakouts  # ブレイク銘柄抽出関数
 
 def main():
     """
@@ -87,15 +87,15 @@ def main():
             logger.info("Buy/Sellシグナルの抽出を開始します...")
             extract_success = extract_signals(is_test_mode)
             
-            # シグナル抽出後にレンジブレイク銘柄の抽出処理を実行
-            logger.info("レンジブレイク銘柄の抽出を開始します...")
-            breakout_success = identify_range_breakouts(is_test_mode)
+            # シグナル抽出後にブレイク銘柄の抽出処理を実行
+            logger.info("ブレイク銘柄の抽出を開始します...")
+            breakout_success = identify_breakouts(is_test_mode)
                         
-            # レンジブレイク抽出の結果をログに記録
+            # ブレイク抽出の結果をログに記録
             if breakout_success:
-                logger.info("レンジブレイク銘柄の抽出が完了しました。")
+                logger.info("ブレイク銘柄の抽出が完了しました。")
             else:
-                logger.error("レンジブレイク銘柄の抽出中にエラーが発生しました。")
+                logger.error("ブレイク銘柄の抽出中にエラーが発生しました。")
             
             # シグナル抽出の結果をログに記録
             if extract_success:

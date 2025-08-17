@@ -292,9 +292,9 @@ def main():
             base_filename = os.path.basename(input_file)
             base_filename_lower = base_filename.lower()
             
-            # range_break.csv または Range_Brake.csv の場合は特別な処理
-            if re.search(r'range_break\.csv', base_filename_lower) or re.search(r'range_brake\.csv', base_filename_lower):
-                output_filename = "range_break_eval.csv"
+            # range_break.csv または Range_Brake.csv または Breakout.csv の場合は特別な処理
+            if re.search(r'range_break\.csv', base_filename_lower) or re.search(r'range_brake\.csv', base_filename_lower) or re.search(r'breakout\.csv', base_filename_lower):
+                output_filename = "breakout_eval.csv"
             else:
                 output_filename = os.path.splitext(base_filename)[0] + "_eval.csv"
             

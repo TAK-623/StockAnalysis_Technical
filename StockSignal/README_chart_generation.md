@@ -1,10 +1,10 @@
 # 株価チャート生成とWordPress投稿機能
 
-この機能は、レンジブレイク銘柄の株価チャートを自動生成し、WordPressに投稿する機能を提供します。
+この機能は、ブレイク銘柄の株価チャートを自動生成し、WordPressに投稿する機能を提供します。
 
 ## 機能概要
 
-1. **Range_Brake.csvの読み込み**: StockSignal/ResultフォルダのRange_Brake.csvからレンジブレイク銘柄を読み込み
+1. **Breakout.csvの読み込み**: StockSignal/ResultフォルダのBreakout.csvからブレイク銘柄を読み込み
 2. **チャート生成**: 各銘柄の株価データから過去60日間のチャートを生成
 3. **WordPress投稿**: 生成したチャートをWordPress記事に投稿
 
@@ -46,8 +46,8 @@ python main.py
 
 ## 処理の流れ
 
-1. **Range_Brake.csvの読み込み**
-   - StockSignal/Result/Range_Brake.csvからレンジブレイク銘柄のティッカーを取得
+1. **Breakout.csvの読み込み**
+   - StockSignal/Result/Breakout.csvからブレイク銘柄のティッカーを取得
 
 2. **株価データの読み込み**
    - StockSignal/TechnicalSignal/{Ticker}_signal.csvから各銘柄の株価データを取得
@@ -60,7 +60,7 @@ python main.py
    - StockSignal/Result/{Ticker}_chart.pngとして保存
 
 4. **WordPress投稿**
-   - レンジブレイク銘柄一覧テーブルを生成
+   - ブレイク銘柄一覧テーブルを生成
    - 各銘柄のチャート画像をbase64エンコードしてHTMLに埋め込み
    - WordPressに自動投稿
 

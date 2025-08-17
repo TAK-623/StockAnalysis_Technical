@@ -298,7 +298,7 @@ def main():
     # アップロードするが並べ替えは行わないファイルリスト
     # シグナル結果（買い・売り）のCSVファイル
     files_to_upload_no_sort = [
-        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\Range_Brake.csv', # レンジブレイク銘柄抽出
+        'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\Breakout.csv', # ブレイク銘柄抽出
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\push_mark.csv', # 押し目狙い銘柄
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_signal_result_buy.csv',  # 買いシグナルCSV
         'C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_signal_result_sell.csv', # 売りシグナルCSV

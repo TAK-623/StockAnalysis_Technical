@@ -99,6 +99,11 @@ def read_csv_to_html_table(csv_file_path):
     Returns:
         tuple: (スタイル適用済みのHTML表（スクロール可能なコンテナ内）, 銘柄数)
     """
+    # ファイルが存在しない場合の処理
+    if not os.path.exists(csv_file_path):
+        print(f"警告: ファイルが見つかりません: {csv_file_path}")
+        return "<p>データが見つかりません</p>", 0
+    
     # CSVファイルをpandasデータフレームとして読み込み
     df = pd.read_csv(csv_file_path)
 
@@ -489,7 +494,7 @@ def main():
     macd_rci_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rci_signal_result_sell.csv" # 売りシグナルCSV
     macd_rsi_rci_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_buy.csv"   # 買いシグナルCSV
     macd_rsi_rci_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_sell.csv" # 売りシグナルCSV
-    range_break_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\Range_Brake.csv" # レンジブレイク銘柄CSV
+    breakout_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\Breakout.csv" # ブレイク銘柄CSV
     strong_buying_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_buying_trend.csv" # 強い買いトレンド銘柄抽出
     strong_selling_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_selling_trend.csv" # 強い売りトレンド銘柄抽出
     bb_macd_buy_signals_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_bb_signal_result_buy.csv" # BB-MACD買いシグナル銘柄抽出
@@ -510,7 +515,15 @@ def main():
     html_table_macd_rci_sell, macd_rci_sell_count = read_csv_to_html_table(macd_rci_signal_sell_csv_file_path) # 売りシグナルテーブル
     html_table_macd_rsi_rci_buy, macd_rsi_rci_buy_count = read_csv_to_html_table(macd_rsi_rci_signal_buy_csv_file_path)   # 買いシグナルテーブル
     html_table_macd_rsi_rci_sell, macd_rsi_rci_sell_count = read_csv_to_html_table(macd_rsi_rci_signal_sell_csv_file_path) # 売りシグナルテーブル
-    html_table_range_break, range_break_count = read_csv_to_html_table(range_break_csv_file_path) # レンジブレイク銘柄テーブル
+    # ブレイク銘柄ファイルのパスを動的に決定（Breakout.csvが存在しない場合はRange_Brake.csvを使用）
+    breakout_file_path = breakout_csv_file_path
+    if not os.path.exists(breakout_file_path):
+        range_brake_path = breakout_csv_file_path.replace("Breakout.csv", "Range_Brake.csv")
+        if os.path.exists(range_brake_path):
+            breakout_file_path = range_brake_path
+            print(f"Breakout.csvが見つからないため、Range_Brake.csvを使用します: {range_brake_path}")
+    
+    html_table_breakout, breakout_count = read_csv_to_html_table(breakout_file_path) # ブレイク銘柄テーブル
     html_table_strong_buying, strong_buying_count = read_csv_to_html_table(strong_buying_csv_file_path) # 強い買いトレンド銘柄テーブル
     html_table_strong_selling, strong_selling_count = read_csv_to_html_table(strong_selling_csv_file_path) # 強い売りトレンド銘柄テーブル
     html_table_bb_macd_buy, bb_macd_buy_count = read_csv_to_html_table(bb_macd_buy_signals_csv_file_path) # BB-MACD買いシグナル銘柄テーブル
@@ -749,7 +762,7 @@ def main():
         </div>
         <p><!-- /wp:st-blocks/st-slidebox --></p>
 
-        <h2>ブレイク銘柄 ({range_break_count})</h2>
+        <h2>ブレイク銘柄 ({breakout_count})</h2>
         <p>過去3か月間の最高値を更新した銘柄です。</p>
         <p>下記の条件で抽出しています。
         </p>[st-mybox title="ブレイク銘柄を抽出する条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
@@ -765,26 +778,34 @@ def main():
         <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
         <div class="st-slidebox" data-st-slidebox-content="">
         <div class="scroll-box">
-        レンジブレイク銘柄
-        {html_table_range_break}
+        ブレイク銘柄
+        {html_table_breakout}
         </div>
         </div>
         </div>
         <p><!-- /wp:st-blocks/st-slidebox --></p>
         """
     
-    # レンジブレイク銘柄のチャートを生成
-    print("レンジブレイク銘柄のチャートを生成中...")
+    # ブレイク銘柄のチャートを生成
+    print("ブレイク銘柄のチャートを生成中...")
     company_names = load_company_names()
     chart_img_paths = []
     
-    # Range_Brake.csvからレンジブレイク銘柄を読み込み
+    # ブレイク銘柄ファイルから銘柄を読み込み
     try:
-        range_break_df = pd.read_csv(range_break_csv_file_path, encoding='utf-8')
-        range_break_tickers = range_break_df['Ticker'].tolist()
+        # ブレイク銘柄ファイルのパスを動的に決定
+        breakout_file_path = breakout_csv_file_path
+        if not os.path.exists(breakout_file_path):
+            range_brake_path = breakout_csv_file_path.replace("Breakout.csv", "Range_Brake.csv")
+            if os.path.exists(range_brake_path):
+                breakout_file_path = range_brake_path
+                print(f"Breakout.csvが見つからないため、Range_Brake.csvを使用します: {range_brake_path}")
+        
+        breakout_df = pd.read_csv(breakout_file_path, encoding='utf-8-sig')
+        breakout_tickers = breakout_df['Ticker'].tolist()
         
         # 各銘柄のチャートを生成（全件）
-        for i, ticker in enumerate(range_break_tickers):
+        for i, ticker in enumerate(breakout_tickers):
             try:
                 chart_path = generate_chart(ticker, company_names)
                 if chart_path:
@@ -810,7 +831,7 @@ def main():
             
             if charts_images_html:
                 charts_section = f"""
-                <h2>レンジブレイク銘柄チャート</h2>
+                <h2>ブレイク銘柄チャート</h2>
                 <p>各銘柄の株価チャートです。過去6ヶ月間の価格推移と出来高を表示しています。</p>
                 <p><!-- wp:st-blocks/st-slidebox --></p>
                 <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
@@ -829,7 +850,7 @@ def main():
             print("⚠ 投稿するチャートがありません")
             
     except Exception as e:
-        print(f"レンジブレイク銘柄のチャート生成でエラー: {e}")
+        print(f"ブレイク銘柄のチャート生成でエラー: {e}")
     
     # WordPressに投稿を送信
     post_to_wordpress(post_title, post_content)
