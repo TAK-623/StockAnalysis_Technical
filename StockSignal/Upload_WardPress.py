@@ -260,10 +260,10 @@ def generate_chart(ticker, company_names):
         # 銘柄名を取得
         company_name = company_names.get(ticker, f"銘柄{ticker}")
         
-        # ROE情報を取得して「☆」マークを追加
+        # ROE情報を取得してROE値を追加
         roe = get_roe_for_ticker(ticker)
-        if roe is not None and roe >= 10.0:
-            company_name += ' ☆'
+        if roe is not None:
+            company_name += f' (ROE：{roe:.2f}%)'
         
         # mplfinance 形式に変換
         df_mpf = df.copy()

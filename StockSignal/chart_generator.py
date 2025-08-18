@@ -201,10 +201,10 @@ class ChartGenerator:
             # 銘柄名を取得
             company_name = self.company_names.get(ticker, f"銘柄{ticker}")
             
-            # ROE情報を取得して「☆」マークを追加
+            # ROE情報を取得してROE値を追加
             roe = self.get_roe_for_ticker(ticker)
-            if roe is not None and roe >= 10.0:
-                company_name += ' ☆'
+            if roe is not None:
+                company_name += f' (ROE：{roe:.2f}%)'
             
             # mplfinance 用に整形
             df_mpf = df.copy()
