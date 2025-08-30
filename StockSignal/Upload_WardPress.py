@@ -163,27 +163,31 @@ def load_company_names():
     try:
         company_list_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "company_list_20250426.csv")
         df = pd.read_csv(company_list_file, encoding='utf-8')
-        return dict(zip(df['Ticker'], df['銘柄名']))
+        # ティッカーを文字列に変換して辞書を作成
+        return dict(zip(df['Ticker'].astype(str), df['銘柄名']))
     except Exception as e:
         print(f"銘柄名ファイルの読み込みエラー: {e}")
         return {}
 
-def get_roe_for_ticker(ticker: str) -> Optional[float]:
+def get_roe_for_ticker(ticker) -> Optional[float]:
     """
     指定された銘柄のROE情報をyfinanceから取得
     
     Args:
-        ticker: 銘柄コード（例: "7203.T"）
+        ticker: 銘柄コード（例: "7203.T" または 7203）
     
     Returns:
         ROE値（パーセンテージ）、取得できない場合はNone
     """
     try:
+        # tickerを文字列に変換
+        ticker_str = str(ticker)
+        
         # 日本株の場合は.Tを付ける
-        if not ticker.endswith('.T'):
-            ticker_with_suffix = f"{ticker}.T"
+        if not ticker_str.endswith('.T'):
+            ticker_with_suffix = f"{ticker_str}.T"
         else:
-            ticker_with_suffix = ticker
+            ticker_with_suffix = ticker_str
         
         # yfinanceでティッカー情報を取得
         stock = yf.Ticker(ticker_with_suffix)
@@ -200,7 +204,8 @@ def get_roe_for_ticker(ticker: str) -> Optional[float]:
             return None
             
     except Exception as e:
-        print(f"{ticker}: ROE取得中にエラーが発生しました: {str(e)}")
+        ticker_str = str(ticker)
+        print(f"{ticker_str}: ROE取得中にエラーが発生しました: {str(e)}")
         return None
 
 def load_stock_data(ticker):
@@ -215,7 +220,8 @@ def load_stock_data(ticker):
     """
     try:
         technical_signal_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "TechnicalSignal")
-        signal_file = os.path.join(technical_signal_dir, f"{ticker}_signal.csv")
+        ticker_str = str(ticker)
+        signal_file = os.path.join(technical_signal_dir, f"{ticker_str}_signal.csv")
         if not os.path.exists(signal_file):
             print(f"信号ファイルが見つかりません: {signal_file}")
             return None
@@ -225,7 +231,7 @@ def load_stock_data(ticker):
         # 必要な列のみを選択
         required_columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
         if not all(col in df.columns for col in required_columns):
-            print(f"必要な列が見つかりません: {ticker}")
+            print(f"必要な列が見つかりません: {ticker_str}")
             return None
         
         # 日付列をdatetime型に変換
@@ -237,7 +243,7 @@ def load_stock_data(ticker):
         return df[required_columns]
         
     except Exception as e:
-        print(f"株価データの読み込みエラー ({ticker}): {e}")
+        print(f"株価データの読み込みエラー ({ticker_str}): {e}")
         return None
 
 def generate_chart(ticker, company_names):
@@ -257,8 +263,9 @@ def generate_chart(ticker, company_names):
         if df is None or df.empty:
             return None
         
-        # 銘柄名を取得
-        company_name = company_names.get(ticker, f"銘柄{ticker}")
+        # 銘柄名を取得（tickerを文字列に変換）
+        ticker_str = str(ticker)
+        company_name = company_names.get(ticker_str, f"銘柄{ticker_str}")
         
         # ROE情報を取得してROE値を追加
         roe = get_roe_for_ticker(ticker)
@@ -292,7 +299,7 @@ def generate_chart(ticker, company_names):
         # 出力ファイルパス
         result_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Result")
         os.makedirs(result_dir, exist_ok=True)
-        output_file = os.path.join(result_dir, f"{ticker}_chart.png")
+        output_file = os.path.join(result_dir, f"{ticker_str}_chart.png")
 
         # 画像をファイルに保存（figを受け取り軸を整形）
         fig, axes = mpf.plot(
@@ -300,7 +307,7 @@ def generate_chart(ticker, company_names):
             type='candle',
             mav=(5, 25),
             style=s,
-            title=f"{ticker} - {company_name}",
+            title=f"{ticker_str} - {company_name}",
             figsize=(9.6, 6.4),  # 960px × 640px (96 DPI)
             volume=True,  # 出来高を表示
             tight_layout=True,
@@ -518,6 +525,152 @@ def cleanup_old_charts():
             print("Resultフォルダが見つかりません")
     except Exception as e:
         print(f"古いチャートファイルの削除中にエラーが発生しました: {e}")
+
+def generate_breakout_charts(breakout_csv_file_path, company_names):
+    """
+    ブレイク銘柄のチャートを生成してWordPressにアップロードし、HTMLセクションを返す
+    
+    Args:
+        breakout_csv_file_path (str): ブレイク銘柄CSVファイルのパス
+        company_names (dict): 銘柄名辞書
+        
+    Returns:
+        str: ブレイク銘柄チャートのHTMLセクション
+    """
+    print("ブレイク銘柄のチャートを生成中...")
+    breakout_chart_img_paths = []
+    
+    # ブレイク銘柄ファイルから銘柄を読み込み
+    try:
+        # ブレイク銘柄ファイルのパスを動的に決定
+        breakout_file_path = breakout_csv_file_path
+        if not os.path.exists(breakout_file_path):
+            range_brake_path = breakout_csv_file_path.replace("Breakout.csv", "Range_Brake.csv")
+            if os.path.exists(range_brake_path):
+                breakout_file_path = range_brake_path
+                print(f"Breakout.csvが見つからないため、Range_Brake.csvを使用します: {range_brake_path}")
+        
+        breakout_df = pd.read_csv(breakout_file_path, encoding='utf-8-sig')
+        breakout_tickers = breakout_df['Ticker'].tolist()
+        
+        # 各銘柄のチャートを生成（全件）
+        for i, ticker in enumerate(breakout_tickers):
+            try:
+                chart_path = generate_chart(ticker, company_names)
+                if chart_path:
+                    breakout_chart_img_paths.append(chart_path)
+                    print(f"✓ {ticker} のチャートを生成")
+                else:
+                    print(f"✗ {ticker} のチャート生成に失敗")
+            except Exception as e:
+                print(f"✗ {ticker} のチャート生成でエラー: {str(e)}")
+        
+        # チャートを結合（10銘柄ずつに分割）
+        combined_breakout_chart_paths = combine_charts(breakout_chart_img_paths, charts_per_image=10)
+        
+        if combined_breakout_chart_paths:
+            breakout_charts_images_html = ""
+            for i, chart_path in enumerate(combined_breakout_chart_paths):
+                url = upload_image_to_wordpress(chart_path)
+                if url:
+                    breakout_charts_images_html += f"<div style=\"margin: 20px 0; text-align: center;\"><img src=\"{url}\" alt=\"レンジブレイク銘柄チャート\" style=\"max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 5px;\"></div>"
+                    print(f"✓ ブレイクチャート {i+1} を投稿内容に追加")
+                else:
+                    print(f"✗ ブレイクチャート {i+1} の画像アップロードに失敗: {chart_path}")
+            
+            if breakout_charts_images_html:
+                breakout_charts_section = f"""
+                <h3>ブレイク銘柄チャート</h3>
+                <p>各銘柄の株価チャートです。過去6ヶ月間の価格推移と出来高を表示しています。</p>
+                <p><!-- wp:st-blocks/st-slidebox --></p>
+                <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
+                <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
+                <div class="st-slidebox" data-st-slidebox-content="">
+                <div class="scroll-box">
+                {breakout_charts_images_html}
+                </div>
+                </div>
+                </div>
+                <p><!-- /wp:st-blocks/st-slidebox --></p>
+                """
+                print(f"✓ 全ブレイクチャートを投稿内容に追加")
+                return breakout_charts_section
+        else:
+            print("⚠ 投稿するブレイクチャートがありません")
+            return ""
+            
+    except Exception as e:
+        print(f"ブレイク銘柄のチャート生成でエラー: {e}")
+        return ""
+
+def generate_push_mark_charts(push_mark_csv_file_path, company_names):
+    """
+    押し目銘柄のチャートを生成してWordPressにアップロードし、HTMLセクションを返す
+    
+    Args:
+        push_mark_csv_file_path (str): 押し目銘柄CSVファイルのパス
+        company_names (dict): 銘柄名辞書
+        
+    Returns:
+        str: 押し目銘柄チャートのHTMLセクション
+    """
+    print("押し目銘柄のチャートを生成中...")
+    push_mark_chart_img_paths = []
+    
+    # 押し目銘柄ファイルから銘柄を読み込み
+    try:
+        push_mark_df = pd.read_csv(push_mark_csv_file_path, encoding='utf-8-sig')
+        push_mark_tickers = push_mark_df['Ticker'].tolist()
+        
+        # 各銘柄のチャートを生成（全件）
+        for i, ticker in enumerate(push_mark_tickers):
+            try:
+                chart_path = generate_chart(ticker, company_names)
+                if chart_path:
+                    push_mark_chart_img_paths.append(chart_path)
+                    print(f"✓ {ticker} の押し目チャートを生成")
+                else:
+                    print(f"✗ {ticker} の押し目チャート生成に失敗")
+            except Exception as e:
+                print(f"✗ {ticker} の押し目チャート生成でエラー: {str(e)}")
+        
+        # チャートを結合（10銘柄ずつに分割）
+        combined_push_mark_chart_paths = combine_charts(push_mark_chart_img_paths, charts_per_image=10)
+        
+        if combined_push_mark_chart_paths:
+            push_mark_charts_images_html = ""
+            for i, chart_path in enumerate(combined_push_mark_chart_paths):
+                url = upload_image_to_wordpress(chart_path)
+                if url:
+                    push_mark_charts_images_html += f"<div style=\"margin: 20px 0; text-align: center;\"><img src=\"{url}\" alt=\"押し目銘柄チャート\" style=\"max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 5px;\"></div>"
+                    print(f"✓ 押し目チャート {i+1} を投稿内容に追加")
+                else:
+                    print(f"✗ 押し目チャート {i+1} の画像アップロードに失敗: {chart_path}")
+            
+            if push_mark_charts_images_html:
+                push_mark_charts_section = f"""
+                <h3>押し目銘柄チャート</h3>
+                <p>各銘柄の株価チャートです。過去6ヶ月間の価格推移と出来高を表示しています。</p>
+                <p><!-- wp:st-blocks/st-slidebox --></p>
+                <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
+                <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
+                <div class="st-slidebox" data-st-slidebox-content="">
+                <div class="scroll-box">
+                {push_mark_charts_images_html}
+                </div>
+                </div>
+                </div>
+                <p><!-- /wp:st-blocks/st-slidebox --></p>
+                """
+                print(f"✓ 全押し目チャートを投稿内容に追加")
+                return push_mark_charts_section
+        else:
+            print("⚠ 投稿する押し目チャートがありません")
+            return ""
+            
+    except Exception as e:
+        print(f"押し目銘柄のチャート生成でエラー: {e}")
+        return ""
 
 def main():
     """
@@ -803,7 +956,17 @@ def main():
         </div>
         </div>
         <p><!-- /wp:st-blocks/st-slidebox --></p>
-
+        """
+    
+    # 銘柄名辞書を読み込み
+    company_names = load_company_names()
+    
+    # 押し目銘柄のチャートを生成して投稿内容に追加
+    push_mark_charts_section = generate_push_mark_charts(push_mark_csv_file_path, company_names)
+    post_content += push_mark_charts_section
+    
+    # ブレイク銘柄のテーブルを追加
+    post_content += f"""
         <h2>ブレイク銘柄 ({breakout_count})</h2>
         <p>過去3か月間の最高値を更新した銘柄です。</p>
         <p>下記の条件で抽出しています。
@@ -828,71 +991,9 @@ def main():
         <p><!-- /wp:st-blocks/st-slidebox --></p>
         """
     
-    # ブレイク銘柄のチャートを生成
-    print("ブレイク銘柄のチャートを生成中...")
-    company_names = load_company_names()
-    chart_img_paths = []
-    
-    # ブレイク銘柄ファイルから銘柄を読み込み
-    try:
-        # ブレイク銘柄ファイルのパスを動的に決定
-        breakout_file_path = breakout_csv_file_path
-        if not os.path.exists(breakout_file_path):
-            range_brake_path = breakout_csv_file_path.replace("Breakout.csv", "Range_Brake.csv")
-            if os.path.exists(range_brake_path):
-                breakout_file_path = range_brake_path
-                print(f"Breakout.csvが見つからないため、Range_Brake.csvを使用します: {range_brake_path}")
-        
-        breakout_df = pd.read_csv(breakout_file_path, encoding='utf-8-sig')
-        breakout_tickers = breakout_df['Ticker'].tolist()
-        
-        # 各銘柄のチャートを生成（全件）
-        for i, ticker in enumerate(breakout_tickers):
-            try:
-                chart_path = generate_chart(ticker, company_names)
-                if chart_path:
-                    chart_img_paths.append(chart_path)
-                    print(f"✓ {ticker} のチャートを生成")
-                else:
-                    print(f"✗ {ticker} のチャート生成に失敗")
-            except Exception as e:
-                print(f"✗ {ticker} のチャート生成でエラー: {str(e)}")
-        
-        # チャートを結合（10銘柄ずつに分割）
-        combined_chart_paths = combine_charts(chart_img_paths, charts_per_image=10)
-        
-        if combined_chart_paths:
-            charts_images_html = ""
-            for i, chart_path in enumerate(combined_chart_paths):
-                url = upload_image_to_wordpress(chart_path)
-                if url:
-                    charts_images_html += f"<div style=\"margin: 20px 0; text-align: center;\"><img src=\"{url}\" alt=\"レンジブレイク銘柄チャート\" style=\"max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 5px;\"></div>"
-                    print(f"✓ チャート {i+1} を投稿内容に追加")
-                else:
-                    print(f"✗ チャート {i+1} の画像アップロードに失敗: {chart_path}")
-            
-            if charts_images_html:
-                charts_section = f"""
-                <h2>ブレイク銘柄チャート</h2>
-                <p>各銘柄の株価チャートです。過去6ヶ月間の価格推移と出来高を表示しています。</p>
-                <p><!-- wp:st-blocks/st-slidebox --></p>
-                <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-                <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-                <div class="st-slidebox" data-st-slidebox-content="">
-                <div class="scroll-box">
-                {charts_images_html}
-                </div>
-                </div>
-                </div>
-                <p><!-- /wp:st-blocks/st-slidebox --></p>
-                """
-                post_content += charts_section
-                print(f"✓ 全チャートを投稿内容に追加")
-        else:
-            print("⚠ 投稿するチャートがありません")
-            
-    except Exception as e:
-        print(f"ブレイク銘柄のチャート生成でエラー: {e}")
+    # ブレイク銘柄のチャートを生成して投稿内容に追加
+    breakout_charts_section = generate_breakout_charts(breakout_csv_file_path, company_names)
+    post_content += breakout_charts_section
     
     # WordPressに投稿を送信
     post_to_wordpress(post_title, post_content)
