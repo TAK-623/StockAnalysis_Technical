@@ -70,22 +70,25 @@ class ChartGenerator:
         plt.style.use('default')
         japanize_matplotlib.japanize()
     
-    def get_roe_for_ticker(self, ticker: str) -> Optional[float]:
+    def get_roe_for_ticker(self, ticker) -> Optional[float]:
         """
         指定された銘柄のROE情報をyfinanceから取得
         
         Args:
-            ticker: 銘柄コード（例: "7203.T"）
+            ticker: 銘柄コード（例: "7203.T" または 7203）
         
         Returns:
             ROE値（パーセンテージ）、取得できない場合はNone
         """
         try:
+            # tickerを文字列に変換
+            ticker_str = str(ticker)
+            
             # 日本株の場合は.Tを付ける
-            if not ticker.endswith('.T'):
-                ticker_with_suffix = f"{ticker}.T"
+            if not ticker_str.endswith('.T'):
+                ticker_with_suffix = f"{ticker_str}.T"
             else:
-                ticker_with_suffix = ticker
+                ticker_with_suffix = ticker_str
             
             # yfinanceでティッカー情報を取得
             stock = yf.Ticker(ticker_with_suffix)
@@ -102,7 +105,8 @@ class ChartGenerator:
                 return None
                 
         except Exception as e:
-            print(f"{ticker}: ROE取得中にエラーが発生しました: {str(e)}")
+            ticker_str = str(ticker)
+            print(f"{ticker_str}: ROE取得中にエラーが発生しました: {str(e)}")
             return None
     
     def _load_company_names(self):
@@ -116,7 +120,8 @@ class ChartGenerator:
         """
         try:
             df = pd.read_csv(self.company_list_file, encoding='utf-8')
-            return dict(zip(df['Ticker'], df['銘柄名']))
+            # ティッカーを文字列に変換して辞書を作成
+            return dict(zip(df['Ticker'].astype(str), df['銘柄名']))
         except Exception as e:
             print(f"銘柄名ファイルの読み込みエラー: {e}")
             return {}
@@ -153,7 +158,8 @@ class ChartGenerator:
                             データが取得できない場合はNone
         """
         try:
-            signal_file = os.path.join(self.technical_signal_dir, f"{ticker}_signal.csv")
+            ticker_str = str(ticker)
+            signal_file = os.path.join(self.technical_signal_dir, f"{ticker_str}_signal.csv")
             if not os.path.exists(signal_file):
                 print(f"信号ファイルが見つかりません: {signal_file}")
                 return None
@@ -163,7 +169,7 @@ class ChartGenerator:
             # 必要な列のみを選択
             required_columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
             if not all(col in df.columns for col in required_columns):
-                print(f"必要な列が見つかりません: {ticker}")
+                print(f"必要な列が見つかりません: {ticker_str}")
                 return None
             
             # 日付列をdatetime型に変換
@@ -175,7 +181,7 @@ class ChartGenerator:
             return df[required_columns]
             
         except Exception as e:
-            print(f"株価データの読み込みエラー ({ticker}): {e}")
+            print(f"株価データの読み込みエラー ({ticker_str}): {e}")
             return None
     
     def generate_chart(self, ticker):
@@ -198,8 +204,9 @@ class ChartGenerator:
             if df is None or df.empty:
                 return None
             
-            # 銘柄名を取得
-            company_name = self.company_names.get(ticker, f"銘柄{ticker}")
+            # 銘柄名を取得（tickerを文字列に変換）
+            ticker_str = str(ticker)
+            company_name = self.company_names.get(ticker_str, f"銘柄{ticker_str}")
             
             # ROE情報を取得してROE値を追加
             roe = self.get_roe_for_ticker(ticker)
@@ -218,7 +225,7 @@ class ChartGenerator:
             mc = mpf.make_marketcolors(up='#d32f2f', down='#1e88e5', inherit=True)
             s = mpf.make_mpf_style(base_mpf_style='yahoo', marketcolors=mc, rc={'font.family': 'Meiryo'})
 
-            output_file = os.path.join(self.result_dir, f"{ticker}_chart.png")
+            output_file = os.path.join(self.result_dir, f"{ticker_str}_chart.png")
 
             # プロット（出来高付き、ローソク足）し、軸を調整
             fig, axes = mpf.plot(
@@ -228,7 +235,7 @@ class ChartGenerator:
                 volume=True,
                 style=s,
                 figsize=(12, 8),
-                title=f"{ticker} - {company_name}",
+                title=f"{ticker_str} - {company_name}",
                 tight_layout=True,
                 returnfig=True
             )
