@@ -41,6 +41,10 @@ from PIL import Image
 import math
 import yfinance as yf
 from typing import Optional
+import shutil
+
+# 結果バックアップ機能のインポート
+from result_backup import backup_previous_results, get_consecutive_tickers, decorate_company_name
 
 # WordPressサイトの接続情報を設定
 WP_SITE_URL = "https://www.takstorage.site/"  # WordPressサイトのURL
@@ -246,13 +250,14 @@ def load_stock_data(ticker):
         print(f"株価データの読み込みエラー ({ticker_str}): {e}")
         return None
 
-def generate_chart(ticker, company_names):
+def generate_chart(ticker, company_names, consecutive_tickers=None):
     """
     指定されたティッカーのチャートを生成し、`StockSignal/Result/{Ticker}_chart.png` に保存
     
     Args:
         ticker (str): ティッカー
         company_names (dict): 銘柄名辞書
+        consecutive_tickers (dict): 連続該当銘柄の辞書
         
     Returns:
         str | None: 生成されたチャートPNGファイルのパス
@@ -266,6 +271,10 @@ def generate_chart(ticker, company_names):
         # 銘柄名を取得（tickerを文字列に変換）
         ticker_str = str(ticker)
         company_name = company_names.get(ticker_str, f"銘柄{ticker_str}")
+        
+        # 連続該当銘柄の場合、銘柄名の先頭に「◎」を付与
+        if consecutive_tickers:
+            company_name = decorate_company_name(ticker, company_name, consecutive_tickers)
         
         # ROE情報を取得してROE値を追加
         roe = get_roe_for_ticker(ticker)
@@ -526,13 +535,14 @@ def cleanup_old_charts():
     except Exception as e:
         print(f"古いチャートファイルの削除中にエラーが発生しました: {e}")
 
-def generate_breakout_charts(breakout_csv_file_path, company_names):
+def generate_breakout_charts(breakout_csv_file_path, company_names, consecutive_tickers=None):
     """
     ブレイク銘柄のチャートを生成してWordPressにアップロードし、HTMLセクションを返す
     
     Args:
         breakout_csv_file_path (str): ブレイク銘柄CSVファイルのパス
         company_names (dict): 銘柄名辞書
+        consecutive_tickers (dict): 連続該当銘柄の辞書
         
     Returns:
         str: ブレイク銘柄チャートのHTMLセクション
@@ -556,7 +566,7 @@ def generate_breakout_charts(breakout_csv_file_path, company_names):
         # 各銘柄のチャートを生成（全件）
         for i, ticker in enumerate(breakout_tickers):
             try:
-                chart_path = generate_chart(ticker, company_names)
+                chart_path = generate_chart(ticker, company_names, consecutive_tickers)
                 if chart_path:
                     breakout_chart_img_paths.append(chart_path)
                     print(f"✓ {ticker} のチャートを生成")
@@ -603,13 +613,14 @@ def generate_breakout_charts(breakout_csv_file_path, company_names):
         print(f"ブレイク銘柄のチャート生成でエラー: {e}")
         return ""
 
-def generate_push_mark_charts(push_mark_csv_file_path, company_names):
+def generate_push_mark_charts(push_mark_csv_file_path, company_names, consecutive_tickers=None):
     """
     押し目銘柄のチャートを生成してWordPressにアップロードし、HTMLセクションを返す
     
     Args:
         push_mark_csv_file_path (str): 押し目銘柄CSVファイルのパス
         company_names (dict): 銘柄名辞書
+        consecutive_tickers (dict): 連続該当銘柄の辞書
         
     Returns:
         str: 押し目銘柄チャートのHTMLセクション
@@ -625,7 +636,7 @@ def generate_push_mark_charts(push_mark_csv_file_path, company_names):
         # 各銘柄のチャートを生成（全件）
         for i, ticker in enumerate(push_mark_tickers):
             try:
-                chart_path = generate_chart(ticker, company_names)
+                chart_path = generate_chart(ticker, company_names, consecutive_tickers)
                 if chart_path:
                     push_mark_chart_img_paths.append(chart_path)
                     print(f"✓ {ticker} の押し目チャートを生成")
@@ -671,6 +682,12 @@ def generate_push_mark_charts(push_mark_csv_file_path, company_names):
     except Exception as e:
         print(f"押し目銘柄のチャート生成でエラー: {e}")
         return ""
+
+
+
+
+
+
 
 def main():
     """
@@ -961,8 +978,11 @@ def main():
     # 銘柄名辞書を読み込み
     company_names = load_company_names()
     
+    # 連続該当銘柄を特定（main.pyでバックアップ済み）
+    consecutive_tickers = get_consecutive_tickers()
+    
     # 押し目銘柄のチャートを生成して投稿内容に追加
-    push_mark_charts_section = generate_push_mark_charts(push_mark_csv_file_path, company_names)
+    push_mark_charts_section = generate_push_mark_charts(push_mark_csv_file_path, company_names, consecutive_tickers)
     post_content += push_mark_charts_section
     
     # ブレイク銘柄のテーブルを追加
@@ -992,8 +1012,30 @@ def main():
         """
     
     # ブレイク銘柄のチャートを生成して投稿内容に追加
-    breakout_charts_section = generate_breakout_charts(breakout_csv_file_path, company_names)
+    breakout_charts_section = generate_breakout_charts(breakout_csv_file_path, company_names, consecutive_tickers)
     post_content += breakout_charts_section
+    
+    # 連続該当銘柄を装飾
+    decorated_company_names = {ticker: decorate_company_name(ticker, company_names[ticker], consecutive_tickers) for ticker in consecutive_tickers['breakout'] | consecutive_tickers['push_mark']}
+    
+    # 連続該当銘柄を投稿内容に追加
+    post_content += f"""
+        <h2>連続該当銘柄</h2>
+        <p>前回の結果と今回の結果で連続している銘柄です。</p>
+        <p><!-- wp:st-blocks/st-slidebox --></p>
+        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
+        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
+        <div class="st-slidebox" data-st-slidebox-content="">
+        <div class="scroll-box">
+        """
+    for ticker in consecutive_tickers['breakout'] | consecutive_tickers['push_mark']:
+        post_content += f"<p>{decorated_company_names[ticker]}</p>"
+    post_content += """
+        </div>
+        </div>
+        </div>
+        <p><!-- /wp:st-blocks/st-slidebox --></p>
+        """
     
     # WordPressに投稿を送信
     post_to_wordpress(post_title, post_content)

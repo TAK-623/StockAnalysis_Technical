@@ -24,6 +24,10 @@ from matplotlib.ticker import FuncFormatter
 from matplotlib import font_manager as fm
 import yfinance as yf
 from typing import Optional
+import shutil
+
+# 結果バックアップ機能のインポート
+from result_backup import backup_previous_results, get_consecutive_tickers, decorate_company_name
 
 # 日本語フォント設定（Windowsで一般的なフォントを優先的に登録）
 possible_fonts = [
@@ -184,16 +188,18 @@ class ChartGenerator:
             print(f"株価データの読み込みエラー ({ticker_str}): {e}")
             return None
     
-    def generate_chart(self, ticker):
+    def generate_chart(self, ticker, consecutive_tickers=None):
         """
         指定されたティッカーのチャートを生成
         
         指定銘柄の株価データからローソク足チャートを生成し、
         移動平均線（5日・25日）と出来高を表示します。
         チャートには銘柄名とティッカーをタイトルとして表示します。
+        連続該当銘柄の場合は銘柄名の先頭に「◎」を付与します。
         
         Args:
             ticker (str): ティッカー
+            consecutive_tickers (dict): 連続該当銘柄の辞書
             
         Returns:
             str: 生成されたチャートファイルのパス、失敗時はNone
@@ -207,6 +213,10 @@ class ChartGenerator:
             # 銘柄名を取得（tickerを文字列に変換）
             ticker_str = str(ticker)
             company_name = self.company_names.get(ticker_str, f"銘柄{ticker_str}")
+            
+            # 連続該当銘柄の場合、銘柄名の先頭に「◎」を付与
+            if consecutive_tickers:
+                company_name = decorate_company_name(ticker, company_name, consecutive_tickers)
             
             # ROE情報を取得してROE値を追加
             roe = self.get_roe_for_ticker(ticker)
@@ -255,3 +265,5 @@ class ChartGenerator:
         except Exception as e:
             print(f"チャート生成エラー ({ticker}): {e}")
             return None
+
+

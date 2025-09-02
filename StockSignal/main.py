@@ -26,6 +26,7 @@ from technical_indicators import calculate_signals  # テクニカル指標を�
 from technical_indicators import extract_BB_MACD_signals, get_BB_MACD_signal_summary
 from extract_signals import extract_signals, extract_strong_buying_trend, extract_strong_selling_trend, extract_all_ichimoku_signals, extract_push_mark_signals  # 売買シグナルとトレンド銘柄を抽出する関数
 from breakout import identify_breakouts  # ブレイク銘柄抽出関数
+from result_backup import backup_previous_results  # 前回結果のバックアップ機能
 
 def main():
     """
@@ -60,6 +61,11 @@ def main():
     logger = setup_logger(is_test_mode)
     logger.info("=== 株価データ取得・分析・シグナル抽出ツール 開始 ===")
     logger.info(f"実行モード: {'テスト' if is_test_mode else '通常'}")
+    
+    # 前回の結果ファイルをバックアップ（新しい結果生成前に実行）
+    logger.info("前回の結果ファイルをバックアップしています...")
+    backup_previous_results()
+    logger.info("前回の結果ファイルのバックアップが完了しました。")
     
     try:
         # 企業リストの読み込み
