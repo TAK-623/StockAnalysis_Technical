@@ -1,0 +1,154 @@
+# ChartChecker - 株式チャート生成ツール
+
+ChartCheckerは、yfinanceのAPIを使用して株式データを取得し、基準日（大量保有報告書の公表日や投資日など）に線を引いたチャートを生成するツールです。
+
+## 機能
+
+- CSVファイルから銘柄情報を読み込み
+- yfinanceのAPIを使用して過去6か月間（設定可能）のデータを取得
+- 基準日に縦線を引いたローソク足チャートを生成
+- 銘柄名と基準日をチャートに表示
+- 日本語フォント対応
+- 日本の株式銘柄（4桁数字、4文字A付き）に対応
+
+## 必要なファイル
+
+### 1. Input.csv
+銘柄情報を記載するCSVファイル。以下の列が必要です：
+
+| 列名 | 説明 | 例 |
+|------|------|-----|
+| Ticker | ティッカーシンボル | AAPL |
+| 銘柄名 | 会社名 | Apple Inc. |
+| 基準日 | 基準日（YYYY-MM-DD形式） | 2024-01-15 |
+
+**Input.csvの例：**
+```csv
+Ticker,銘柄名,基準日
+AAPL,Apple Inc.,2024-01-15
+MSFT,Microsoft Corporation,2024-02-20
+GOOGL,Alphabet Inc.,2024-03-10
+TSLA,Tesla Inc.,2024-04-05
+AMZN,Amazon.com Inc.,2024-05-12
+```
+
+### 2. config.ini
+設定ファイル。以下の項目をカスタマイズできます：
+
+```ini
+[CHART]
+# データ取得期間（月数）
+data_period_months = 6
+
+# 出力ディレクトリ
+output_directory = output
+
+# チャートサイズ（インチ）
+chart_width = 12.0
+chart_height = 8.0
+```
+
+## セットアップ
+
+### 1. 必要なライブラリのインストール
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Input.csvの準備
+
+銘柄情報を記載したCSVファイルを作成してください。サンプルファイル（Input.csv）を参考にしてください。
+
+## 使用方法
+
+### 基本的な使用方法
+
+```bash
+python chart_checker.py
+```
+
+デフォルトで`Input.csv`を読み込み、`output`ディレクトリにチャートを生成します。
+
+### オプション指定
+
+```bash
+# カスタム入力ファイルを指定
+python chart_checker.py --input my_stocks.csv
+
+# カスタム設定ファイルを指定
+python chart_checker.py --config my_config.ini
+
+# 両方指定
+python chart_checker.py --input my_stocks.csv --config my_config.ini
+```
+
+### バッチファイルでの実行
+
+Windowsの場合、`run_chart_checker.bat`をダブルクリックして実行できます。
+
+## 出力
+
+- 生成されたチャートは`output`ディレクトリ（設定可能）に保存されます
+- ファイル名形式：`{Ticker}_{銘柄名}_from{基準日}.png`
+- 例：`6946_日本アビオニクス_from20250916.png`
+
+## チャートの特徴
+
+- ローソク足チャート（OHLCデータ）
+  - 陽線（上昇）：赤色（実体と枠線が同じ色）
+  - 陰線（下降）：青色（実体と枠線が同じ色）
+  - ヒゲ（高値・安値）と実体（始値・終値）を表示
+- 出来高チャート（下部に表示）
+  - 陽線日：赤色のバー
+  - 陰線日：青色のバー
+- 基準日に緑色の破線の縦線（ローソク足チャート上に表示）
+- 銘柄名とティッカーシンボルをタイトルに表示
+- 基準日の日付を凡例に表示
+- グリッド表示
+- 高解像度（300 DPI）での保存
+
+## トラブルシューティング
+
+### よくある問題
+
+1. **データが取得できない**
+   - ティッカーシンボルが正しいか確認
+   - インターネット接続を確認
+   - yfinanceのサーバーが正常に動作しているか確認
+
+2. **日本語が表示されない**
+   - システムに日本語フォントがインストールされているか確認
+   - config.iniでフォント設定を調整
+
+3. **エラーが発生する**
+   - ログファイル（chart_checker.log）を確認
+   - Input.csvの形式が正しいか確認
+
+### ログファイル
+
+実行ログは`chart_checker.log`に保存されます。エラーが発生した場合は、このファイルを確認してください。
+
+## 設定項目の詳細
+
+### config.iniの設定項目
+
+| セクション | 項目 | 説明 | デフォルト値 |
+|------------|------|------|--------------|
+| CHART | data_period_months | データ取得期間（月数） | 6 |
+| CHART | output_directory | 出力ディレクトリ | output |
+| CHART | chart_width | チャート幅（インチ） | 12.0 |
+| CHART | chart_height | チャート高さ（インチ） | 8.0 |
+| DATA | timezone | データ取得時のタイムゾーン | UTC |
+| DATA | retry_count | データ取得失敗時のリトライ回数 | 3 |
+| DATA | retry_interval | リトライ間隔（秒） | 1 |
+| LOGGING | log_level | ログレベル | INFO |
+| LOGGING | log_file | ログファイル名 | chart_checker.log |
+
+## ライセンス
+
+このツールは教育・研究目的で提供されています。商用利用の場合は、各ライブラリのライセンスを確認してください。
+
+## サポート
+
+問題が発生した場合は、ログファイルを確認し、必要に応じて設定を調整してください。
