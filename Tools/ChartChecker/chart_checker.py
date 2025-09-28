@@ -14,40 +14,68 @@ import matplotlib.dates as mdates
 from datetime import datetime, timedelta
 import argparse
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 import configparser
 from matplotlib.patches import Rectangle
 import numpy as np
+import warnings
+
+# 定数定義
+class Constants:
+    """アプリケーション全体で使用する定数"""
+    
+    # ファイル関連
+    DEFAULT_CONFIG_FILE = 'config.ini'
+    DEFAULT_INPUT_FILE = 'Input.csv'
+    DEFAULT_OUTPUT_DIR = 'output'
+    LOG_FILE = 'chart_checker.log'
+    
+    # CSV列名
+    TICKER_COLUMN = 'Ticker'
+    COMPANY_NAME_COLUMN = '銘柄名'
+    REFERENCE_DATE_COLUMN = '基準日'
+    
+    # チャート設定
+    DEFAULT_CHART_WIDTH = 12.0
+    DEFAULT_CHART_HEIGHT = 8.0
+    DEFAULT_DATA_PERIOD_MONTHS = 6
+    CHART_DPI = 300
+    
+    # ローソク足設定
+    CANDLESTICK_WIDTH = 0.8
+    VOLUME_ALPHA = 0.7
+    
+    # 色設定
+    BULLISH_COLOR = 'red'
+    BEARISH_COLOR = 'blue'
+    REFERENCE_LINE_COLOR = 'green'
+    
+    # 日本の株式ティッカー設定
+    JAPANESE_TICKER_SUFFIX = '.T'
+    JAPANESE_TICKER_ALTERNATIVE_SUFFIX = '.TO'
+    JAPANESE_TICKER_LENGTH = 4
 
 # ログ設定
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('chart_checker.log', encoding='utf-8'),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger(__name__)
+def setup_logging() -> logging.Logger:
+    """ログ設定を初期化"""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(Constants.LOG_FILE, encoding='utf-8'),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    return logging.getLogger(__name__)
 
-class ChartChecker:
-    """基準日線付き株式チャート生成のメインクラス"""
+logger = setup_logging()
+
+class ConfigManager:
+    """設定管理クラス"""
     
-    def __init__(self, config_file: str = 'config.ini'):
-        """設定ファイルでChartCheckerを初期化"""
+    def __init__(self, config_file: str = Constants.DEFAULT_CONFIG_FILE):
         self.config = self._load_config(config_file)
-        self.data_period_months = self.config.getint('CHART', 'data_period_months', fallback=6)
-        self.output_dir = self.config.get('CHART', 'output_directory', fallback='output')
-        self.chart_width = self.config.getfloat('CHART', 'chart_width', fallback=12.0)
-        self.chart_height = self.config.getfloat('CHART', 'chart_height', fallback=8.0)
-        
-        # 出力ディレクトリが存在しない場合は作成
-        os.makedirs(self.output_dir, exist_ok=True)
-        
-        # matplotlibで日本語フォントを使用（警告を抑制）
-        import warnings
-        warnings.filterwarnings('ignore', category=UserWarning, module='matplotlib.font_manager')
-        plt.rcParams['font.family'] = ['DejaVu Sans', 'Meiryo', 'MS Gothic', 'Yu Gothic']
+        self._setup_matplotlib()
     
     def _load_config(self, config_file: str) -> configparser.ConfigParser:
         """INIファイルから設定を読み込み"""
@@ -56,98 +84,193 @@ class ChartChecker:
             config.read(config_file, encoding='utf-8')
         return config
     
-    def load_input_csv(self, csv_file: str) -> pd.DataFrame:
+    def _setup_matplotlib(self) -> None:
+        """matplotlibの設定を初期化"""
+        warnings.filterwarnings('ignore', category=UserWarning, module='matplotlib.font_manager')
+        plt.rcParams['font.family'] = ['DejaVu Sans', 'Meiryo', 'MS Gothic', 'Yu Gothic']
+    
+    def get_data_period_months(self) -> int:
+        """データ取得期間（月数）を取得
+        
+        config.iniの[CHART]セクションのdata_period_monthsで設定可能
+        - デフォルト値：6か月
+        - 基準日から過去Nか月分のデータを取得
+        - 例：6の場合、基準日から6か月前までのデータを取得
+        """
+        return self.config.getint('CHART', 'data_period_months', fallback=Constants.DEFAULT_DATA_PERIOD_MONTHS)
+    
+    def get_output_dir(self) -> str:
+        output_dir = self.config.get('CHART', 'output_directory', fallback=Constants.DEFAULT_OUTPUT_DIR)
+        os.makedirs(output_dir, exist_ok=True)
+        return output_dir
+    
+    def get_chart_width(self) -> float:
+        return self.config.getfloat('CHART', 'chart_width', fallback=Constants.DEFAULT_CHART_WIDTH)
+    
+    def get_chart_height(self) -> float:
+        return self.config.getfloat('CHART', 'chart_height', fallback=Constants.DEFAULT_CHART_HEIGHT)
+
+
+class DataLoader:
+    """データ読み込みクラス"""
+    
+    @staticmethod
+    def load_input_csv(csv_file: str) -> pd.DataFrame:
         """ティッカー情報を含む入力CSVファイルを読み込み"""
         try:
             df = pd.read_csv(csv_file, encoding='utf-8')
-            required_columns = ['Ticker', '銘柄名', '基準日']
-            
-            # 必要な列がすべて存在するかチェック
-            missing_columns = [col for col in required_columns if col not in df.columns]
-            if missing_columns:
-                raise ValueError(f"Missing required columns: {missing_columns}")
-            
-            # 基準日を日時型に変換
-            df['基準日'] = pd.to_datetime(df['基準日'], errors='coerce')
-            
-            # 無効な日付の行を削除
-            invalid_dates = df['基準日'].isna()
-            if invalid_dates.any():
-                logger.warning(f"Removing {invalid_dates.sum()} rows with invalid dates")
-                df = df[~invalid_dates]
-            
+            DataLoader._validate_csv_structure(df)
+            df = DataLoader._clean_data(df)
             logger.info(f"Loaded {len(df)} valid entries from {csv_file}")
             return df
-            
         except Exception as e:
             logger.error(f"Error loading CSV file {csv_file}: {e}")
             raise
     
+    @staticmethod
+    def _validate_csv_structure(df: pd.DataFrame) -> None:
+        """CSVファイルの構造を検証"""
+        required_columns = [Constants.TICKER_COLUMN, Constants.COMPANY_NAME_COLUMN, Constants.REFERENCE_DATE_COLUMN]
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            raise ValueError(f"Missing required columns: {missing_columns}")
+    
+    @staticmethod
+    def _clean_data(df: pd.DataFrame) -> pd.DataFrame:
+        """データをクリーニング"""
+        # 基準日を日時型に変換
+        df[Constants.REFERENCE_DATE_COLUMN] = pd.to_datetime(df[Constants.REFERENCE_DATE_COLUMN], errors='coerce')
+        
+        # 無効な日付の行を削除
+        invalid_dates = df[Constants.REFERENCE_DATE_COLUMN].isna()
+        if invalid_dates.any():
+            logger.warning(f"Removing {invalid_dates.sum()} rows with invalid dates")
+            df = df[~invalid_dates]
+        
+        return df
+
+
+class StockDataFetcher:
+    """株式データ取得クラス"""
+    
+    def __init__(self, data_period_months: int):
+        self.data_period_months = data_period_months
+    
     def fetch_stock_data(self, ticker: str, reference_date: datetime) -> Optional[pd.DataFrame]:
-        """指定期間の株式データを取得"""
+        """指定期間の株式データを取得
+        
+        取得するデータの期間：
+        - 基準日から過去Nか月分（config.iniで設定可能、デフォルト6か月）
+        - 基準日から30日後まで（基準日後の価格変動も確認）
+        - 実際の取得期間は約N+1か月分になる
+        
+        取得するデータ項目：
+        - Open（始値）
+        - High（高値）
+        - Low（安値）
+        - Close（終値）
+        - Volume（出来高）
+        
+        日本の株式の場合：
+        - 自動的に.Tサフィックスを追加
+        - 取得できない場合は.TOサフィックスも試行
+        """
         try:
-            # 開始日と終了日を計算
-            end_date = reference_date + timedelta(days=30)  # 基準日から30日後
-            start_date = reference_date - timedelta(days=self.data_period_months * 30)
+            ticker_with_suffix = self._format_ticker(ticker)
+            stock_data = self._download_data(ticker_with_suffix, reference_date)
             
-            # 日本の株式ティッカーを処理（.Tサフィックスがない場合は追加）
-            if self._is_japanese_ticker(ticker):
-                if not ticker.endswith('.T'):
-                    ticker_with_suffix = f"{ticker}.T"
-                else:
-                    ticker_with_suffix = ticker
-                logger.info(f"Using Japanese ticker format: {ticker_with_suffix}")
-            else:
-                ticker_with_suffix = ticker
+            if stock_data.empty:
+                stock_data = self._try_alternative_format(ticker, reference_date)
             
-            # yfinanceを使用してデータを取得
-            stock = yf.Ticker(ticker_with_suffix)
-            data = stock.history(start=start_date, end=end_date)
+            if stock_data is not None and not stock_data.empty:
+                stock_data = self._normalize_timezone(stock_data)
+                logger.info(f"Fetched {len(stock_data)} data points for {ticker}")
             
-            if data.empty:
-                logger.warning(f"No data found for ticker {ticker} (tried as {ticker_with_suffix})")
-                # 日本の株式の代替ティッカーフォーマットを試行
-                if self._is_japanese_ticker(ticker) and not ticker.endswith('.T'):
-                    alternative_ticker = f"{ticker}.TO"  # .TOサフィックスも試行
-                    logger.info(f"Trying alternative format: {alternative_ticker}")
-                    stock_alt = yf.Ticker(alternative_ticker)
-                    data = stock_alt.history(start=start_date, end=end_date)
-                    if not data.empty:
-                        logger.info(f"Found data with .TO suffix for {ticker}")
-                    else:
-                        logger.warning(f"No data found with alternative format either")
-                        return None
-                else:
-                    return None
-            
-            # タイムゾーン情報がない場合は追加
-            if data.index.tz is None:
-                data.index = data.index.tz_localize('UTC')
-            
-            logger.info(f"Fetched {len(data)} data points for {ticker}")
-            return data
-            
+            return stock_data
         except Exception as e:
             logger.error(f"Error fetching data for {ticker}: {e}")
-            logger.error(f"Tried ticker format: {ticker_with_suffix if 'ticker_with_suffix' in locals() else ticker}")
             return None
     
-    def _is_japanese_ticker(self, ticker: str) -> bool:
-        """ティッカーが日本の株式ティッカーかどうかをチェック"""
-        # チェック用に.Tサフィックスを削除
-        clean_ticker = ticker.replace('.T', '')
-        
-        # 日本の株式ティッカーは通常4桁数字または4文字でAで終わる
-        if len(clean_ticker) == 4:
-            # 4桁数字かチェック（例：6946, 7203など）
-            if clean_ticker.isdigit():
-                return True
-            # Aで終わるかチェック（例：285A, 9984Aなど）
-            if clean_ticker.endswith('A'):
-                return True
-        return False
+    def _format_ticker(self, ticker: str) -> str:
+        """ティッカーを適切な形式にフォーマット"""
+        if self._is_japanese_ticker(ticker):
+            if not ticker.endswith(Constants.JAPANESE_TICKER_SUFFIX):
+                ticker_with_suffix = f"{ticker}{Constants.JAPANESE_TICKER_SUFFIX}"
+                logger.info(f"Using Japanese ticker format: {ticker_with_suffix}")
+                return ticker_with_suffix
+        return ticker
     
-    def _plot_candlestick(self, ax, data, width=0.8):
+    def _download_data(self, ticker: str, reference_date: datetime) -> pd.DataFrame:
+        """データをダウンロード
+        
+        取得期間の計算方法：
+        - 開始日：基準日から過去Nか月（config.iniのdata_period_monthsで設定、デフォルト6か月）
+        - 終了日：基準日から30日後（基準日後の価格変動も確認するため）
+        
+        例：基準日が2024-01-15、data_period_months=6の場合
+        - 開始日：2023-07-15（6か月前）
+        - 終了日：2024-02-14（30日後）
+        - 取得期間：約7.5か月分のデータ
+        """
+        # 基準日から30日後を終了日とする（基準日後の価格変動も確認）
+        end_date = reference_date + timedelta(days=30)
+        
+        # 基準日から過去Nか月前を開始日とする（デフォルト6か月）
+        start_date = reference_date - timedelta(days=self.data_period_months * 30)
+        
+        logger.info(f"データ取得期間: {start_date.strftime('%Y-%m-%d')} から {end_date.strftime('%Y-%m-%d')} まで")
+        
+        stock = yf.Ticker(ticker)
+        return stock.history(start=start_date, end=end_date)
+    
+    def _try_alternative_format(self, ticker: str, reference_date: datetime) -> Optional[pd.DataFrame]:
+        """代替フォーマットでデータ取得を試行"""
+        if self._is_japanese_ticker(ticker) and not ticker.endswith(Constants.JAPANESE_TICKER_SUFFIX):
+            alternative_ticker = f"{ticker}{Constants.JAPANESE_TICKER_ALTERNATIVE_SUFFIX}"
+            logger.info(f"Trying alternative format: {alternative_ticker}")
+            stock_data = self._download_data(alternative_ticker, reference_date)
+            
+            if not stock_data.empty:
+                logger.info(f"Found data with {Constants.JAPANESE_TICKER_ALTERNATIVE_SUFFIX} suffix for {ticker}")
+                return stock_data
+        
+        logger.warning(f"No data found for ticker {ticker}")
+        return None
+    
+    def _normalize_timezone(self, data: pd.DataFrame) -> pd.DataFrame:
+        """タイムゾーン情報を正規化"""
+        if data.index.tz is None:
+            data.index = data.index.tz_localize('UTC')
+        return data
+    
+    @staticmethod
+    def _is_japanese_ticker(ticker: str) -> bool:
+        """ティッカーが日本の株式ティッカーかどうかをチェック"""
+        clean_ticker = ticker.replace(Constants.JAPANESE_TICKER_SUFFIX, '')
+        
+        if len(clean_ticker) == Constants.JAPANESE_TICKER_LENGTH:
+            return clean_ticker.isdigit() or clean_ticker.endswith('A')
+        return False
+
+
+class ChartChecker:
+    """基準日線付き株式チャート生成のメインクラス"""
+    
+    def __init__(self, config_file: str = Constants.DEFAULT_CONFIG_FILE):
+        """設定ファイルでChartCheckerを初期化"""
+        self.config_manager = ConfigManager(config_file)
+        self.data_loader = DataLoader()
+        self.data_fetcher = StockDataFetcher(self.config_manager.get_data_period_months())
+        self.output_dir = self.config_manager.get_output_dir()
+
+
+class ChartRenderer:
+    """チャート描画クラス"""
+    
+    def __init__(self, config_manager: ConfigManager):
+        self.config_manager = config_manager
+    
+    def _plot_candlestick(self, ax, data: pd.DataFrame, width: float = Constants.CANDLESTICK_WIDTH) -> None:
         """ローソク足チャートを描画"""
         for i, (date, row) in enumerate(data.iterrows()):
             open_price = row['Open']
@@ -155,109 +278,131 @@ class ChartChecker:
             high_price = row['High']
             low_price = row['Low']
             
-            # 始値と終値に基づいて色を決定
-            if close_price >= open_price:
-                color = 'red'  # 陽線（日本のスタイルでは赤）
-                body_color = 'red'  # 枠線と同じ色
-            else:
-                color = 'blue'  # 陰線（日本のスタイルでは青）
-                body_color = 'blue'  # 枠線と同じ色
+            color, body_color = self._get_candle_colors(close_price, open_price)
             
             # 高値-安値線を描画
             ax.plot([i, i], [low_price, high_price], color=color, linewidth=1)
             
             # 始値-終値の矩形を描画
-            body_height = abs(close_price - open_price)
-            body_bottom = min(open_price, close_price)
-            
-            if body_height > 0:
-                # 実体の矩形を描画
-                rect = Rectangle((i - width/2, body_bottom), width, body_height, 
-                               facecolor=body_color, edgecolor=color, linewidth=1)
-                ax.add_patch(rect)
-            else:
-                # ドジ線を描画
-                ax.plot([i - width/2, i + width/2], [open_price, open_price], 
-                       color=color, linewidth=2)
+            self._draw_candle_body(ax, i, open_price, close_price, color, body_color, width)
             
             # 始値と終値の目盛りを描画
-            ax.plot([i - width/2, i], [open_price, open_price], color=color, linewidth=2)
-            ax.plot([i, i + width/2], [close_price, close_price], color=color, linewidth=2)
+            self._draw_candle_ticks(ax, i, open_price, close_price, color, width)
     
-    def _plot_volume(self, ax, data, width=0.8):
+    def _get_candle_colors(self, close_price: float, open_price: float) -> Tuple[str, str]:
+        """ローソク足の色を決定"""
+        if close_price >= open_price:
+            return Constants.BULLISH_COLOR, Constants.BULLISH_COLOR
+        else:
+            return Constants.BEARISH_COLOR, Constants.BEARISH_COLOR
+    
+    def _draw_candle_body(self, ax, i: int, open_price: float, close_price: float, 
+                         color: str, body_color: str, width: float) -> None:
+        """ローソク足の実体を描画"""
+        body_height = abs(close_price - open_price)
+        body_bottom = min(open_price, close_price)
+        
+        if body_height > 0:
+            rect = Rectangle((i - width/2, body_bottom), width, body_height, 
+                           facecolor=body_color, edgecolor=color, linewidth=1)
+            ax.add_patch(rect)
+        else:
+            # ドジ線を描画
+            ax.plot([i - width/2, i + width/2], [open_price, open_price], 
+                   color=color, linewidth=2)
+    
+    def _draw_candle_ticks(self, ax, i: int, open_price: float, close_price: float, 
+                          color: str, width: float) -> None:
+        """ローソク足の目盛りを描画"""
+        ax.plot([i - width/2, i], [open_price, open_price], color=color, linewidth=2)
+        ax.plot([i, i + width/2], [close_price, close_price], color=color, linewidth=2)
+    
+    def _plot_volume(self, ax, data: pd.DataFrame, width: float = Constants.CANDLESTICK_WIDTH) -> None:
         """出来高チャートを描画"""
         for i, (date, row) in enumerate(data.iterrows()):
             volume = row['Volume']
             open_price = row['Open']
             close_price = row['Close']
             
-            # 価格変動に基づいて色を決定
-            if close_price >= open_price:
-                color = 'red'  # 陽線の出来高
-            else:
-                color = 'blue'  # 陰線の出来高
-            
-            # 出来高バーを描画
-            ax.bar(i, volume, width=width, color=color, alpha=0.7, edgecolor=color, linewidth=1)
+            color = self._get_volume_color(close_price, open_price)
+            ax.bar(i, volume, width=width, color=color, alpha=Constants.VOLUME_ALPHA, 
+                  edgecolor=color, linewidth=1)
+    
+    def _get_volume_color(self, close_price: float, open_price: float) -> str:
+        """出来高の色を決定"""
+        return Constants.BULLISH_COLOR if close_price >= open_price else Constants.BEARISH_COLOR
+    
+    def _add_reference_line(self, ax, stock_data: pd.DataFrame, reference_date: datetime) -> None:
+        """基準日線を追加"""
+        ref_date_idx = self._find_closest_date_index(stock_data, reference_date)
+        
+        if ref_date_idx is not None:
+            line_position = ref_date_idx - 0.5
+            ax.axvline(x=line_position, color=Constants.REFERENCE_LINE_COLOR, 
+                      linestyle='--', linewidth=2, 
+                      label=f'基準日: {reference_date.strftime("%Y-%m-%d")}')
+    
+    def _find_closest_date_index(self, stock_data: pd.DataFrame, reference_date: datetime) -> Optional[int]:
+        """基準日に最も近い日付のインデックスを見つける"""
+        # 基準日がタイムゾーン情報を持つようにする
+        if reference_date.tzinfo is None:
+            reference_date = reference_date.replace(tzinfo=stock_data.index.tz)
+        
+        ref_date_idx = None
+        min_diff = float('inf')
+        
+        for i, date in enumerate(stock_data.index):
+            diff = abs((date - reference_date).total_seconds())
+            if diff < min_diff:
+                min_diff = diff
+                ref_date_idx = i
+        
+        return ref_date_idx
+    
+    def _setup_chart_axes(self, ax1, ax2, stock_data: pd.DataFrame) -> None:
+        """チャートの軸を設定"""
+        # 両方のサブプロットのX軸ラベルを設定
+        n = max(1, len(stock_data) // 10)
+        x_positions = range(0, len(stock_data), n)
+        x_labels = [stock_data.index[i].strftime('%Y-%m-%d') for i in x_positions]
+        
+        ax1.set_xticks(x_positions)
+        ax1.set_xticklabels([])  # 上部チャートからXラベルを削除
+        ax2.set_xticks(x_positions)
+        ax2.set_xticklabels(x_labels, rotation=45, ha='right')
+        
+        ax2.set_xlabel('Date', fontsize=12)
+        ax2.set_ylabel('Volume', fontsize=12)
+        ax2.grid(True, alpha=0.3)
     
     def create_chart(self, ticker: str, company_name: str, reference_date: datetime, 
-                    stock_data: pd.DataFrame) -> str:
+                    stock_data: pd.DataFrame, output_dir: str) -> Optional[str]:
         """基準日線付き株式チャートを作成して保存"""
         try:
             # 2つのサブプロット（価格チャートと出来高）で図を作成
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(self.chart_width, self.chart_height), 
+            fig, (ax1, ax2) = plt.subplots(2, 1, 
+                                          figsize=(self.config_manager.get_chart_width(), 
+                                                  self.config_manager.get_chart_height()), 
                                           gridspec_kw={'height_ratios': [3, 1]})
             
             # 上部サブプロットにローソク足チャートを描画
             self._plot_candlestick(ax1, stock_data)
             
-            # ローソク足の間に基準日線を追加
-            # データ内で基準日に最も近い日付を見つける
-            ref_date_idx = None
-            min_diff = float('inf')
-            
-            # 基準日がタイムゾーン情報を持つようにする
-            if reference_date.tzinfo is None:
-                reference_date = reference_date.replace(tzinfo=stock_data.index.tz)
-            
-            for i, date in enumerate(stock_data.index):
-                diff = abs((date - reference_date).total_seconds())
-                if diff < min_diff:
-                    min_diff = diff
-                    ref_date_idx = i
-            
-            if ref_date_idx is not None:
-                # 基準日のローソク足と前のローソク足の間に線を配置
-                line_position = ref_date_idx - 0.5
-                ax1.axvline(x=line_position, color='green', linestyle='--', linewidth=2, 
-                           label=f'基準日: {reference_date.strftime("%Y-%m-%d")}')
+            # 基準日線を追加
+            self._add_reference_line(ax1, stock_data, reference_date)
             
             # 価格チャートをカスタマイズ
             ax1.set_title(f'{company_name} ({ticker}) - ローソク足チャート', fontsize=14, fontweight='bold')
             ax1.set_ylabel('Price', fontsize=12)
             ax1.legend()
             ax1.grid(True, alpha=0.3)
-            
-            # 価格のY軸フォーマットを設定
             ax1.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x:.0f}'))
             
             # 下部サブプロットに出来高チャートを描画
             self._plot_volume(ax2, stock_data)
             
-            # 両方のサブプロットのX軸ラベルを設定
-            # 過密を避けるためにn番目ごとの日付をサンプリング
-            n = max(1, len(stock_data) // 10)
-            x_positions = range(0, len(stock_data), n)
-            x_labels = [stock_data.index[i].strftime('%Y-%m-%d') for i in x_positions]
-            
-            ax1.set_xticks(x_positions)
-            ax1.set_xticklabels([])  # 上部チャートからXラベルを削除
-            ax2.set_xticks(x_positions)
-            ax2.set_xticklabels(x_labels, rotation=45, ha='right')
-            
-            ax2.set_xlabel('Date', fontsize=12)
-            ax2.set_ylabel('Volume', fontsize=12)
-            ax2.grid(True, alpha=0.3)
+            # チャートの軸を設定
+            self._setup_chart_axes(ax1, ax2, stock_data)
             
             # レイアウトを調整
             plt.tight_layout()
@@ -265,9 +410,9 @@ class ChartChecker:
             # チャートを保存
             filename = f"{ticker}_{company_name}_from{reference_date.strftime('%Y%m%d')}.png"
             filename = filename.replace('/', '_').replace('\\', '_')  # ファイル名をクリーンアップ
-            filepath = os.path.join(self.output_dir, filename)
+            filepath = os.path.join(output_dir, filename)
             
-            plt.savefig(filepath, dpi=300, bbox_inches='tight')
+            plt.savefig(filepath, dpi=Constants.CHART_DPI, bbox_inches='tight')
             plt.close()
             
             logger.info(f"Chart saved: {filepath}")
@@ -277,28 +422,56 @@ class ChartChecker:
             logger.error(f"Error creating chart for {ticker}: {e}")
             plt.close()
             return None
+
+
+class ChartChecker:
+    """基準日線付き株式チャート生成のメインクラス"""
+    
+    def __init__(self, config_file: str = Constants.DEFAULT_CONFIG_FILE):
+        """設定ファイルでChartCheckerを初期化"""
+        self.config_manager = ConfigManager(config_file)
+        self.data_loader = DataLoader()
+        self.data_fetcher = StockDataFetcher(self.config_manager.get_data_period_months())
+        self.chart_renderer = ChartRenderer(self.config_manager)
+        self.output_dir = self.config_manager.get_output_dir()
     
     def process_all_stocks(self, csv_file: str) -> List[str]:
-        """入力CSVファイルからすべての株式を処理"""
+        """入力CSVファイルからすべての株式を処理
+        
+        処理の流れ：
+        1. CSVファイルから銘柄情報を読み込み
+        2. 各銘柄について以下を実行：
+           - 基準日から過去Nか月分の株式データを取得（config.iniで設定可能）
+           - 基準日から30日後までのデータも含めて取得
+           - ローソク足チャートと出来高チャートを生成
+           - 基準日線をチャートに描画
+           - PNGファイルとして保存
+        
+        データ取得期間の例：
+        - 基準日：2024-01-15
+        - data_period_months=6（デフォルト）の場合
+        - 取得期間：2023-07-15 から 2024-02-14 まで（約7.5か月分）
+        """
         try:
             # 入力データを読み込み
-            df = self.load_input_csv(csv_file)
+            df = self.data_loader.load_input_csv(csv_file)
             
             created_charts = []
             
             for index, row in df.iterrows():
-                ticker = row['Ticker']
-                company_name = row['銘柄名']
-                reference_date = row['基準日']
+                ticker = row[Constants.TICKER_COLUMN]
+                company_name = row[Constants.COMPANY_NAME_COLUMN]
+                reference_date = row[Constants.REFERENCE_DATE_COLUMN]
                 
                 logger.info(f"Processing {ticker} - {company_name}")
                 
-                # 株式データを取得
-                stock_data = self.fetch_stock_data(ticker, reference_date)
+                # 株式データを取得（基準日を中心とした期間のデータ）
+                stock_data = self.data_fetcher.fetch_stock_data(ticker, reference_date)
                 
                 if stock_data is not None:
-                    # チャートを作成
-                    chart_path = self.create_chart(ticker, company_name, reference_date, stock_data)
+                    # ローソク足チャートと出来高チャートを作成
+                    chart_path = self.chart_renderer.create_chart(
+                        ticker, company_name, reference_date, stock_data, self.output_dir)
                     if chart_path:
                         created_charts.append(chart_path)
                 else:
@@ -314,10 +487,10 @@ class ChartChecker:
 def main():
     """メイン関数"""
     parser = argparse.ArgumentParser(description='基準日線付き株式チャートを生成')
-    parser.add_argument('--input', '-i', default='Input.csv', 
-                       help='入力CSVファイル (デフォルト: Input.csv)')
-    parser.add_argument('--config', '-c', default='config.ini',
-                       help='設定ファイル (デフォルト: config.ini)')
+    parser.add_argument('--input', '-i', default=Constants.DEFAULT_INPUT_FILE, 
+                       help=f'入力CSVファイル (デフォルト: {Constants.DEFAULT_INPUT_FILE})')
+    parser.add_argument('--config', '-c', default=Constants.DEFAULT_CONFIG_FILE,
+                       help=f'設定ファイル (デフォルト: {Constants.DEFAULT_CONFIG_FILE})')
     
     args = parser.parse_args()
     
