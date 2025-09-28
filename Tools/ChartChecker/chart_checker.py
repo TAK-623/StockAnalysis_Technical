@@ -27,8 +27,6 @@ class Constants:
     # ファイル関連
     DEFAULT_CONFIG_FILE = 'config.ini'
     DEFAULT_INPUT_FILE = 'Input.csv'
-    DEFAULT_OUTPUT_DIR = 'output'
-    LOG_FILE = 'chart_checker.log'
     
     # CSV列名
     TICKER_COLUMN = 'Ticker'
@@ -36,9 +34,6 @@ class Constants:
     REFERENCE_DATE_COLUMN = '基準日'
     
     # チャート設定
-    DEFAULT_CHART_WIDTH = 12.0
-    DEFAULT_CHART_HEIGHT = 8.0
-    DEFAULT_DATA_PERIOD_MONTHS = 6
     CHART_DPI = 300
     
     # ローソク足設定
@@ -62,7 +57,7 @@ def setup_logging() -> logging.Logger:
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler(Constants.LOG_FILE, encoding='utf-8'),
+            logging.FileHandler('chart_checker.log', encoding='utf-8'),
             logging.StreamHandler(sys.stdout)
         ]
     )
@@ -89,26 +84,26 @@ class ConfigManager:
         warnings.filterwarnings('ignore', category=UserWarning, module='matplotlib.font_manager')
         plt.rcParams['font.family'] = ['DejaVu Sans', 'Meiryo', 'MS Gothic', 'Yu Gothic']
     
-    def get_data_period_months(self) -> int:
-        """データ取得期間（月数）を取得
+    def get_data_period(self) -> str:
+        """データ取得期間を取得
         
-        config.iniの[CHART]セクションのdata_period_monthsで設定可能
-        - デフォルト値：6か月
-        - 基準日から過去Nか月分のデータを取得
-        - 例：6の場合、基準日から6か月前までのデータを取得
+        config.iniの[CHART]セクションのdata_periodで設定可能
+        - yfinanceのperiodパラメータの値を直接指定
+        - デフォルト値：6mo
+        - 使用可能な値：1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max
         """
-        return self.config.getint('CHART', 'data_period_months', fallback=Constants.DEFAULT_DATA_PERIOD_MONTHS)
+        return self.config.get('CHART', 'data_period', fallback='6mo')
     
     def get_output_dir(self) -> str:
-        output_dir = self.config.get('CHART', 'output_directory', fallback=Constants.DEFAULT_OUTPUT_DIR)
+        output_dir = self.config.get('CHART', 'output_directory', fallback='output')
         os.makedirs(output_dir, exist_ok=True)
         return output_dir
     
     def get_chart_width(self) -> float:
-        return self.config.getfloat('CHART', 'chart_width', fallback=Constants.DEFAULT_CHART_WIDTH)
+        return self.config.getfloat('CHART', 'chart_width', fallback=12.0)
     
     def get_chart_height(self) -> float:
-        return self.config.getfloat('CHART', 'chart_height', fallback=Constants.DEFAULT_CHART_HEIGHT)
+        return self.config.getfloat('CHART', 'chart_height', fallback=8.0)
 
 
 class DataLoader:
@@ -153,16 +148,16 @@ class DataLoader:
 class StockDataFetcher:
     """株式データ取得クラス"""
     
-    def __init__(self, data_period_months: int):
-        self.data_period_months = data_period_months
+    def __init__(self, data_period: str):
+        self.data_period = data_period
     
     def fetch_stock_data(self, ticker: str, reference_date: datetime) -> Optional[pd.DataFrame]:
         """指定期間の株式データを取得
         
         取得するデータの期間：
-        - 基準日から過去Nか月分（config.iniで設定可能、デフォルト6か月）
-        - 基準日から30日後まで（基準日後の価格変動も確認）
-        - 実際の取得期間は約N+1か月分になる
+        - yfinanceのperiodパラメータを使用（config.iniで設定可能）
+        - デフォルト：6mo（6か月）
+        - 使用可能な値：1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max
         
         取得するデータ項目：
         - Open（始値）
@@ -174,6 +169,8 @@ class StockDataFetcher:
         日本の株式の場合：
         - 自動的に.Tサフィックスを追加
         - 取得できない場合は.TOサフィックスも試行
+        
+        注意：基準日はチャート上に縦線として表示されるが、データ取得期間には影響しない
         """
         try:
             ticker_with_suffix = self._format_ticker(ticker)
@@ -201,34 +198,25 @@ class StockDataFetcher:
         return ticker
     
     def _download_data(self, ticker: str, reference_date: datetime) -> pd.DataFrame:
-        """データをダウンロード
-        
-        取得期間の計算方法：
-        - 開始日：基準日から過去Nか月（config.iniのdata_period_monthsで設定、デフォルト6か月）
-        - 終了日：基準日から30日後（基準日後の価格変動も確認するため）
-        
-        例：基準日が2024-01-15、data_period_months=6の場合
-        - 開始日：2023-07-15（6か月前）
-        - 終了日：2024-02-14（30日後）
-        - 取得期間：約7.5か月分のデータ
+        """株価データをダウンロード
+        取得期間の指定方法：
+        - yfinanceのperiodパラメータを直接使用
+        - config.iniで設定された期間値を使用
         """
-        # 基準日から30日後を終了日とする（基準日後の価格変動も確認）
-        end_date = reference_date + timedelta(days=30)
-        
-        # 基準日から過去Nか月前を開始日とする（デフォルト6か月）
-        start_date = reference_date - timedelta(days=self.data_period_months * 30)
-        
-        logger.info(f"データ取得期間: {start_date.strftime('%Y-%m-%d')} から {end_date.strftime('%Y-%m-%d')} まで")
+        logger.info(f"データ取得期間: {self.data_period}")
         
         stock = yf.Ticker(ticker)
-        return stock.history(start=start_date, end=end_date)
+        return stock.history(period=self.data_period)
     
     def _try_alternative_format(self, ticker: str, reference_date: datetime) -> Optional[pd.DataFrame]:
         """代替フォーマットでデータ取得を試行"""
         if self._is_japanese_ticker(ticker) and not ticker.endswith(Constants.JAPANESE_TICKER_SUFFIX):
             alternative_ticker = f"{ticker}{Constants.JAPANESE_TICKER_ALTERNATIVE_SUFFIX}"
             logger.info(f"Trying alternative format: {alternative_ticker}")
-            stock_data = self._download_data(alternative_ticker, reference_date)
+            
+            # 代替ティッカーでもperiodパラメータを使用
+            stock = yf.Ticker(alternative_ticker)
+            stock_data = stock.history(period=self.data_period)
             
             if not stock_data.empty:
                 logger.info(f"Found data with {Constants.JAPANESE_TICKER_ALTERNATIVE_SUFFIX} suffix for {ticker}")
@@ -260,7 +248,7 @@ class ChartChecker:
         """設定ファイルでChartCheckerを初期化"""
         self.config_manager = ConfigManager(config_file)
         self.data_loader = DataLoader()
-        self.data_fetcher = StockDataFetcher(self.config_manager.get_data_period_months())
+        self.data_fetcher = StockDataFetcher(self.config_manager.get_data_period())
         self.output_dir = self.config_manager.get_output_dir()
 
 
@@ -431,7 +419,7 @@ class ChartChecker:
         """設定ファイルでChartCheckerを初期化"""
         self.config_manager = ConfigManager(config_file)
         self.data_loader = DataLoader()
-        self.data_fetcher = StockDataFetcher(self.config_manager.get_data_period_months())
+        self.data_fetcher = StockDataFetcher(self.config_manager.get_data_period())
         self.chart_renderer = ChartRenderer(self.config_manager)
         self.output_dir = self.config_manager.get_output_dir()
     
@@ -441,16 +429,11 @@ class ChartChecker:
         処理の流れ：
         1. CSVファイルから銘柄情報を読み込み
         2. 各銘柄について以下を実行：
-           - 基準日から過去Nか月分の株式データを取得（config.iniで設定可能）
-           - 基準日から30日後までのデータも含めて取得
+           - 処理実行時点から指定した期間の株式データを取得（config.iniで設定可能）
+           - 処理実行時点（今日）までのデータを取得
            - ローソク足チャートと出来高チャートを生成
            - 基準日線をチャートに描画
            - PNGファイルとして保存
-        
-        データ取得期間の例：
-        - 基準日：2024-01-15
-        - data_period_months=6（デフォルト）の場合
-        - 取得期間：2023-07-15 から 2024-02-14 まで（約7.5か月分）
         """
         try:
             # 入力データを読み込み
@@ -465,7 +448,7 @@ class ChartChecker:
                 
                 logger.info(f"Processing {ticker} - {company_name}")
                 
-                # 株式データを取得（基準日を中心とした期間のデータ）
+                # 株式データを取得（処理実行時点から過去Nか月分のデータ）
                 stock_data = self.data_fetcher.fetch_stock_data(ticker, reference_date)
                 
                 if stock_data is not None:
