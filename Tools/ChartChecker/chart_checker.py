@@ -85,13 +85,7 @@ class ConfigManager:
         plt.rcParams['font.family'] = ['DejaVu Sans', 'Meiryo', 'MS Gothic', 'Yu Gothic']
     
     def get_data_period(self) -> str:
-        """データ取得期間を取得
-        
-        config.iniの[CHART]セクションのdata_periodで設定可能
-        - yfinanceのperiodパラメータの値を直接指定
-        - デフォルト値：6mo
-        - 使用可能な値：1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max
-        """
+        """データ取得期間を取得（config.iniのdata_periodから設定、設定されていないときはデフォルトの6moを返す）"""
         return self.config.get('CHART', 'data_period', fallback='6mo')
     
     def get_output_dir(self) -> str:
@@ -156,8 +150,6 @@ class StockDataFetcher:
         
         取得するデータの期間：
         - yfinanceのperiodパラメータを使用（config.iniで設定可能）
-        - デフォルト：6mo（6か月）
-        - 使用可能な値：1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max
         
         取得するデータ項目：
         - Open（始値）
