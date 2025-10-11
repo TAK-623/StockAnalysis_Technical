@@ -32,6 +32,8 @@ class Constants:
     TICKER_COLUMN = 'Ticker'
     COMPANY_NAME_COLUMN = '銘柄名'
     REFERENCE_DATE_COLUMN = '基準日'
+    INSTITUTION_COLUMN = '機関'
+    TARGET_PRICE_COLUMN = '目標株価'
     
     # チャート設定
     CHART_DPI = 300
@@ -44,6 +46,7 @@ class Constants:
     BULLISH_COLOR = 'red'
     BEARISH_COLOR = 'blue'
     REFERENCE_LINE_COLOR = 'green'
+    TARGET_PRICE_LINE_COLOR = 'orange'
     
     # 日本の株式ティッカー設定
     JAPANESE_TICKER_SUFFIX = '.T'
@@ -129,6 +132,10 @@ class DataLoader:
         """データをクリーニング"""
         # 基準日を日時型に変換
         df[Constants.REFERENCE_DATE_COLUMN] = pd.to_datetime(df[Constants.REFERENCE_DATE_COLUMN], errors='coerce')
+        
+        # 目標株価を数値型に変換（存在する場合）
+        if Constants.TARGET_PRICE_COLUMN in df.columns:
+            df[Constants.TARGET_PRICE_COLUMN] = pd.to_numeric(df[Constants.TARGET_PRICE_COLUMN], errors='coerce')
         
         # 無効な日付の行を削除
         invalid_dates = df[Constants.REFERENCE_DATE_COLUMN].isna()
@@ -355,8 +362,35 @@ class ChartRenderer:
         ax2.set_ylabel('Volume', fontsize=12)
         ax2.grid(True, alpha=0.3)
     
+    def _add_reference_line(self, ax, stock_data: pd.DataFrame, reference_date: datetime) -> None:
+        """基準日線を追加"""
+        # 基準日の位置を特定
+        ref_date_idx = None
+        for i, (date, _) in enumerate(stock_data.iterrows()):
+            if date.date() == reference_date.date():
+                ref_date_idx = i
+                break
+        
+        if ref_date_idx is not None:
+            # 基準日線を描画（凡例付き）
+            ax.axvline(x=ref_date_idx - 0.5, color=Constants.REFERENCE_LINE_COLOR, 
+                      linestyle='-', linewidth=2, alpha=0.8, 
+                      label=f'基準日: {reference_date.strftime("%Y-%m-%d")}')
+    
+    def _add_target_price_line(self, ax, target_price: float, institution: str = None) -> None:
+        """目標株価線を追加"""
+        # 凡例用のラベルを作成
+        label = f'目標株価: {target_price:,.0f}円'
+        if institution:
+            label = f'{institution} {label}'
+        
+        # 目標株価線を描画（凡例付き）
+        ax.axhline(y=target_price, color=Constants.TARGET_PRICE_LINE_COLOR, 
+                  linestyle='--', linewidth=2, alpha=0.8, label=label)
+    
     def create_chart(self, ticker: str, company_name: str, reference_date: datetime, 
-                    stock_data: pd.DataFrame, output_dir: str) -> Optional[str]:
+                    stock_data: pd.DataFrame, output_dir: str, 
+                    institution: str = None, target_price: float = None) -> Optional[str]:
         """基準日線付き株式チャートを作成して保存"""
         try:
             # 2つのサブプロット（価格チャートと出来高）で図を作成
@@ -371,8 +405,15 @@ class ChartRenderer:
             # 基準日線を追加
             self._add_reference_line(ax1, stock_data, reference_date)
             
+            # 目標株価線を追加（目標株価が設定されている場合）
+            if target_price is not None and not pd.isna(target_price):
+                self._add_target_price_line(ax1, target_price, institution)
+            
             # 価格チャートをカスタマイズ
-            ax1.set_title(f'{company_name} ({ticker}) - ローソク足チャート', fontsize=14, fontweight='bold')
+            title = f'{company_name} ({ticker}) - ローソク足チャート'
+            if institution and target_price and not pd.isna(target_price):
+                title += f'\n{institution} 目標株価: {target_price:,.0f}円'
+            ax1.set_title(title, fontsize=14, fontweight='bold')
             ax1.set_ylabel('Price', fontsize=12)
             ax1.legend()
             ax1.grid(True, alpha=0.3)
@@ -438,6 +479,10 @@ class ChartChecker:
                 company_name = row[Constants.COMPANY_NAME_COLUMN]
                 reference_date = row[Constants.REFERENCE_DATE_COLUMN]
                 
+                # 機関と目標株価の情報を取得（存在する場合）
+                institution = row.get(Constants.INSTITUTION_COLUMN, None)
+                target_price = row.get(Constants.TARGET_PRICE_COLUMN, None)
+                
                 logger.info(f"Processing {ticker} - {company_name}")
                 
                 # 株式データを取得（処理実行時点から過去Nか月分のデータ）
@@ -446,7 +491,8 @@ class ChartChecker:
                 if stock_data is not None:
                     # ローソク足チャートと出来高チャートを作成
                     chart_path = self.chart_renderer.create_chart(
-                        ticker, company_name, reference_date, stock_data, self.output_dir)
+                        ticker, company_name, reference_date, stock_data, self.output_dir,
+                        institution, target_price)
                     if chart_path:
                         created_charts.append(chart_path)
                 else:
