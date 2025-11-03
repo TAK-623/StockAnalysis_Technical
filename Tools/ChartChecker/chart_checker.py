@@ -336,16 +336,6 @@ class ChartRenderer:
         """出来高の色を決定"""
         return Constants.BULLISH_COLOR if close_price >= open_price else Constants.BEARISH_COLOR
     
-    def _add_reference_line(self, ax, stock_data: pd.DataFrame, reference_date: datetime) -> None:
-        """基準日線を追加"""
-        ref_date_idx = self._find_closest_date_index(stock_data, reference_date)
-        
-        if ref_date_idx is not None:
-            line_position = ref_date_idx - 0.5
-            ax.axvline(x=line_position, color=Constants.REFERENCE_LINE_COLOR, 
-                      linestyle='--', linewidth=2, 
-                      label=f'基準日: {reference_date.strftime("%Y-%m-%d")}')
-    
     def _find_closest_date_index(self, stock_data: pd.DataFrame, reference_date: datetime) -> Optional[int]:
         """基準日に最も近い日付のインデックスを見つける"""
         # 基準日がタイムゾーン情報を持つようにする
@@ -389,8 +379,8 @@ class ChartRenderer:
                 break
         
         if ref_date_idx is not None:
-            # 基準日線を描画（凡例付き）
-            ax.axvline(x=ref_date_idx - 0.5, color=Constants.REFERENCE_LINE_COLOR, 
+            # 基準日線を描画（凡例付き）- 基準日のローソク足の右側に引く
+            ax.axvline(x=ref_date_idx + 0.5, color=Constants.REFERENCE_LINE_COLOR, 
                       linestyle='-', linewidth=2, alpha=0.8, 
                       label=f'基準日: {reference_date.strftime("%Y-%m-%d")}')
     
