@@ -130,8 +130,8 @@ class DataLoader:
     @staticmethod
     def _clean_data(df: pd.DataFrame) -> pd.DataFrame:
         """データをクリーニング"""
-        # 基準日を日時型に変換
-        df[Constants.REFERENCE_DATE_COLUMN] = pd.to_datetime(df[Constants.REFERENCE_DATE_COLUMN], errors='coerce')
+        # 基準日を日時型に変換（yyyymmdd形式）
+        df[Constants.REFERENCE_DATE_COLUMN] = pd.to_datetime(df[Constants.REFERENCE_DATE_COLUMN], format='%Y%m%d', errors='coerce')
         
         # 目標株価を数値型に変換（存在する場合）
         if Constants.TARGET_PRICE_COLUMN in df.columns:
