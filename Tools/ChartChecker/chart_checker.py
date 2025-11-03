@@ -26,8 +26,10 @@ class Constants:
     
     # ファイル関連
     DEFAULT_CONFIG_FILE = 'config.ini'
-    DEFAULT_INPUT_FILE = 'Input.csv'
-    
+    DEFAULT_INPUT_RATING_FILE = 'Input_rating.csv'
+    DEFAULT_INPUT_ACTIVIST_FILE = 'Input_activist.csv'
+    DEFAULT_OUTPUT_RATING = 'Output_rating'
+    DEFAULT_OUTPUT_ACTIVIST = 'Output_activist'
     # CSV列名
     TICKER_COLUMN = 'Ticker'
     COMPANY_NAME_COLUMN = '銘柄名'
@@ -129,13 +131,22 @@ class DataLoader:
     
     @staticmethod
     def _clean_data(df: pd.DataFrame) -> pd.DataFrame:
-        """データをクリーニング"""
+        """データをクリーニング
+        
+        必須列：Ticker, 銘柄名, 基準日
+        オプション列：機関, 目標株価（存在しない場合でもエラーにならない）
+        """
+        # ティッカーを文字列型に変換（数値型で読み込まれる場合があるため）
+        df[Constants.TICKER_COLUMN] = df[Constants.TICKER_COLUMN].astype(str)
+        
         # 基準日を日時型に変換（yyyymmdd形式）
         df[Constants.REFERENCE_DATE_COLUMN] = pd.to_datetime(df[Constants.REFERENCE_DATE_COLUMN], format='%Y%m%d', errors='coerce')
         
-        # 目標株価を数値型に変換（存在する場合）
+        # 目標株価を数値型に変換（存在する場合のみ）
         if Constants.TARGET_PRICE_COLUMN in df.columns:
             df[Constants.TARGET_PRICE_COLUMN] = pd.to_numeric(df[Constants.TARGET_PRICE_COLUMN], errors='coerce')
+        else:
+            logger.debug(f"Column '{Constants.TARGET_PRICE_COLUMN}' not found in CSV, skipping target price processing")
         
         # 無効な日付の行を削除
         invalid_dates = df[Constants.REFERENCE_DATE_COLUMN].isna()
@@ -189,6 +200,8 @@ class StockDataFetcher:
     
     def _format_ticker(self, ticker: str) -> str:
         """ティッカーを適切な形式にフォーマット"""
+        # 数値型の場合も文字列に変換
+        ticker = str(ticker)
         if self._is_japanese_ticker(ticker):
             if not ticker.endswith(Constants.JAPANESE_TICKER_SUFFIX):
                 ticker_with_suffix = f"{ticker}{Constants.JAPANESE_TICKER_SUFFIX}"
@@ -209,6 +222,8 @@ class StockDataFetcher:
     
     def _try_alternative_format(self, ticker: str, reference_date: datetime) -> Optional[pd.DataFrame]:
         """代替フォーマットでデータ取得を試行"""
+        # 数値型の場合も文字列に変換
+        ticker = str(ticker)
         if self._is_japanese_ticker(ticker) and not ticker.endswith(Constants.JAPANESE_TICKER_SUFFIX):
             alternative_ticker = f"{ticker}{Constants.JAPANESE_TICKER_ALTERNATIVE_SUFFIX}"
             logger.info(f"Trying alternative format: {alternative_ticker}")
@@ -233,6 +248,8 @@ class StockDataFetcher:
     @staticmethod
     def _is_japanese_ticker(ticker: str) -> bool:
         """ティッカーが日本の株式ティッカーかどうかをチェック"""
+        # 数値型の場合も文字列に変換
+        ticker = str(ticker)
         clean_ticker = ticker.replace(Constants.JAPANESE_TICKER_SUFFIX, '')
         
         if len(clean_ticker) == Constants.JAPANESE_TICKER_LENGTH:
@@ -388,6 +405,27 @@ class ChartRenderer:
         ax.axhline(y=target_price, color=Constants.TARGET_PRICE_LINE_COLOR, 
                   linestyle='--', linewidth=2, alpha=0.8, label=label)
     
+    def _add_next_day_open_line(self, ax, stock_data: pd.DataFrame, reference_date: datetime) -> None:
+        """基準日翌日のOpenの値で緑の横線を追加"""
+        # 基準日の位置を特定
+        ref_date_idx = None
+        for i, (date, _) in enumerate(stock_data.iterrows()):
+            if date.date() == reference_date.date():
+                ref_date_idx = i
+                break
+        
+        # 基準日が見つかった場合、翌日のOpen値を取得
+        if ref_date_idx is not None and ref_date_idx + 1 < len(stock_data):
+            next_day_idx = ref_date_idx + 1
+            next_day_data = stock_data.iloc[next_day_idx]
+            next_day_open = next_day_data['Open']
+            next_day_date = stock_data.index[next_day_idx]
+            
+            # 基準日翌日のOpenの値で緑の横線を描画（凡例付き）
+            ax.axhline(y=next_day_open, color=Constants.REFERENCE_LINE_COLOR, 
+                      linestyle='-', linewidth=1.5, alpha=0.8, 
+                      label=f'基準日翌日Open: {next_day_open:,.0f}円 ({next_day_date.strftime("%Y-%m-%d")})')
+    
     def create_chart(self, ticker: str, company_name: str, reference_date: datetime, 
                     stock_data: pd.DataFrame, output_dir: str, 
                     institution: str = None, target_price: float = None) -> Optional[str]:
@@ -404,6 +442,9 @@ class ChartRenderer:
             
             # 基準日線を追加
             self._add_reference_line(ax1, stock_data, reference_date)
+            
+            # 基準日翌日のOpenの値で緑の横線を追加
+            self._add_next_day_open_line(ax1, stock_data, reference_date)
             
             # 目標株価線を追加（目標株価が設定されている場合）
             if target_price is not None and not pd.isna(target_price):
@@ -456,7 +497,7 @@ class ChartChecker:
         self.chart_renderer = ChartRenderer(self.config_manager)
         self.output_dir = self.config_manager.get_output_dir()
     
-    def process_all_stocks(self, csv_file: str) -> List[str]:
+    def process_all_stocks(self, csv_file: str, output_dir: str = None) -> List[str]:
         """入力CSVファイルからすべての株式を処理
         
         処理の流れ：
@@ -467,21 +508,33 @@ class ChartChecker:
            - ローソク足チャートと出来高チャートを生成
            - 基準日線をチャートに描画
            - PNGファイルとして保存
+        
+        Args:
+            csv_file: 入力CSVファイルのパス
+            output_dir: 出力ディレクトリ（指定されない場合はデフォルトの出力ディレクトリを使用）
         """
         try:
+            # 出力ディレクトリを設定
+            if output_dir is None:
+                output_dir = self.output_dir
+            else:
+                os.makedirs(output_dir, exist_ok=True)
+            
             # 入力データを読み込み
             df = self.data_loader.load_input_csv(csv_file)
             
             created_charts = []
             
             for index, row in df.iterrows():
-                ticker = row[Constants.TICKER_COLUMN]
+                # ティッカーを文字列型に変換（念のため）
+                ticker = str(row[Constants.TICKER_COLUMN])
                 company_name = row[Constants.COMPANY_NAME_COLUMN]
                 reference_date = row[Constants.REFERENCE_DATE_COLUMN]
                 
-                # 機関と目標株価の情報を取得（存在する場合）
-                institution = row.get(Constants.INSTITUTION_COLUMN, None)
-                target_price = row.get(Constants.TARGET_PRICE_COLUMN, None)
+                # 機関と目標株価の情報を取得（存在する場合、存在しない場合はNone）
+                # 列が存在しない場合は.get()がNoneを返すため安全
+                institution = row.get(Constants.INSTITUTION_COLUMN, None) if Constants.INSTITUTION_COLUMN in row.index else None
+                target_price = row.get(Constants.TARGET_PRICE_COLUMN, None) if Constants.TARGET_PRICE_COLUMN in row.index else None
                 
                 logger.info(f"Processing {ticker} - {company_name}")
                 
@@ -491,7 +544,7 @@ class ChartChecker:
                 if stock_data is not None:
                     # ローソク足チャートと出来高チャートを作成
                     chart_path = self.chart_renderer.create_chart(
-                        ticker, company_name, reference_date, stock_data, self.output_dir,
+                        ticker, company_name, reference_date, stock_data, output_dir,
                         institution, target_price)
                     if chart_path:
                         created_charts.append(chart_path)
@@ -508,10 +561,10 @@ class ChartChecker:
 def main():
     """メイン関数"""
     parser = argparse.ArgumentParser(description='基準日線付き株式チャートを生成')
-    parser.add_argument('--input', '-i', default=Constants.DEFAULT_INPUT_FILE, 
-                       help=f'入力CSVファイル (デフォルト: {Constants.DEFAULT_INPUT_FILE})')
     parser.add_argument('--config', '-c', default=Constants.DEFAULT_CONFIG_FILE,
                        help=f'設定ファイル (デフォルト: {Constants.DEFAULT_CONFIG_FILE})')
+    parser.add_argument('--mode', '-m', choices=['rating', 'activist', 'both'], default='both',
+                       help='処理モード: rating (ratingのみ), activist (activistのみ), both (両方) (デフォルト: both)')
     
     args = parser.parse_args()
     
@@ -519,15 +572,42 @@ def main():
         # ChartCheckerを初期化
         checker = ChartChecker(args.config)
         
-        # すべての株式を処理
-        created_charts = checker.process_all_stocks(args.input)
+        total_charts = []
+        
+        # Input_rating.csvを処理（ratingまたはbothモードの場合）
+        if args.mode in ['rating', 'both']:
+            if os.path.exists(Constants.DEFAULT_INPUT_RATING_FILE):
+                logger.info(f"Processing {Constants.DEFAULT_INPUT_RATING_FILE}")
+                rating_charts = checker.process_all_stocks(
+                    Constants.DEFAULT_INPUT_RATING_FILE, 
+                    Constants.DEFAULT_OUTPUT_RATING
+                )
+                total_charts.extend(rating_charts)
+                print(f"\n=== {Constants.DEFAULT_INPUT_RATING_FILE} 処理完了 ===")
+                print(f"'{Constants.DEFAULT_OUTPUT_RATING}' ディレクトリに {len(rating_charts)} 個のチャートを作成しました")
+            else:
+                logger.warning(f"{Constants.DEFAULT_INPUT_RATING_FILE} not found, skipping")
+        
+        # Input_activist.csvを処理（activistまたはbothモードの場合）
+        if args.mode in ['activist', 'both']:
+            if os.path.exists(Constants.DEFAULT_INPUT_ACTIVIST_FILE):
+                logger.info(f"Processing {Constants.DEFAULT_INPUT_ACTIVIST_FILE}")
+                activist_charts = checker.process_all_stocks(
+                    Constants.DEFAULT_INPUT_ACTIVIST_FILE, 
+                    Constants.DEFAULT_OUTPUT_ACTIVIST
+                )
+                total_charts.extend(activist_charts)
+                print(f"\n=== {Constants.DEFAULT_INPUT_ACTIVIST_FILE} 処理完了 ===")
+                print(f"'{Constants.DEFAULT_OUTPUT_ACTIVIST}' ディレクトリに {len(activist_charts)} 個のチャートを作成しました")
+            else:
+                logger.warning(f"{Constants.DEFAULT_INPUT_ACTIVIST_FILE} not found, skipping")
         
         print(f"\n=== チャート生成完了 ===")
-        print(f"'{checker.output_dir}' ディレクトリに {len(created_charts)} 個のチャートを作成しました")
+        print(f"合計 {len(total_charts)} 個のチャートを作成しました")
         
-        if created_charts:
+        if total_charts:
             print("\n作成されたチャート:")
-            for chart in created_charts:
+            for chart in total_charts:
                 print(f"  - {chart}")
         
     except Exception as e:

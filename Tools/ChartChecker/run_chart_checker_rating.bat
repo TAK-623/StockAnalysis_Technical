@@ -2,7 +2,7 @@
 chcp 65001 > nul
 echo ========================================
 echo ChartChecker - 株式チャート生成ツール
-echo モード: 両方 (Rating + Activist)
+echo モード: Ratingのみ
 echo ========================================
 echo.
 
@@ -24,17 +24,13 @@ if not exist "Output_rating" (
     mkdir Output_rating
     echo Output_ratingディレクトリを作成しました。
 )
-if not exist "Output_activist" (
-    mkdir Output_activist
-    echo Output_activistディレクトリを作成しました。
-)
 
 echo.
-echo ChartCheckerを実行中... (両方のモード)
+echo ChartCheckerを実行中... (Ratingモード)
 echo.
 
-REM ChartCheckerの実行 (両方)
-python chart_checker.py --mode both
+REM ChartCheckerの実行 (Ratingのみ)
+python chart_checker.py --mode rating
 
 if errorlevel 1 (
     echo.
@@ -42,9 +38,10 @@ if errorlevel 1 (
 ) else (
     echo.
     echo 処理が完了しました！
-    echo 生成されたチャートはOutput_ratingとOutput_activistディレクトリに保存されています。
+    echo 生成されたチャートはOutput_ratingディレクトリに保存されています。
 )
 
 echo.
 echo 終了するには何かキーを押してください...
 pause > nul
+
