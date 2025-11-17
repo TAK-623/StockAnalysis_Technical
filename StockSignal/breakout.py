@@ -80,7 +80,7 @@ def identify_breakouts(is_test_mode: bool = False) -> bool:
     
     検出条件：
     1. 最新のCloseが直近3か月の前日までの最高値を更新
-    2. 最新の出来高が直近3か月の移動平均の1.5倍以上
+    2. 最新の出来高が直近3か月の移動平均の1.0倍以上
     3. 出来高が10万株以上
     4. 終値が高値と安値の中間よりも高い（上髭が短い）
     5. 陽線である（終値が始値を上回る）
@@ -175,7 +175,7 @@ def identify_breakouts(is_test_mode: bool = False) -> bool:
                 
                 # 条件2: 最新の出来高が直近1か月の移動平均の1.5倍よりも多いか
                 volume_ma = three_month_data['Volume'].mean()
-                condition2 = latest_data['Volume'] > volume_ma * 1.5  # 移動平均の1.5倍を超えているか
+                condition2 = latest_data['Volume'] > volume_ma * 1.0  # 移動平均の1.0倍を超えているか
                 
                 # 条件3: 出来高が10万以上であるか
                 condition3 = latest_data['Volume'] >= 100000
@@ -205,7 +205,7 @@ def identify_breakouts(is_test_mode: bool = False) -> bool:
                 logger.debug(f"銘柄: {ticker}")
                 logger.debug(f"条件1（前日までの最高値更新）: {condition1}")
                 logger.debug(f"最新のClose: {latest_data['Close']}, 前日までの最高値: {previous_data['High'].max() if not previous_data.empty else 'N/A'}")
-                logger.debug(f"条件2（出来高1.5倍）: {condition2}")
+                logger.debug(f"条件2（出来高1.0倍）: {condition2}")
                 logger.debug(f"最新の出来高: {latest_data['Volume']}, 移動平均: {volume_ma}")
                 logger.debug(f"条件3（出来高10万以上）: {condition3}")
                 logger.debug(f"条件4（HighとLowの中間よりも高値で終了）: {condition4}")
