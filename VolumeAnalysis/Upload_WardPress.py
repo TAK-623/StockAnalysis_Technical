@@ -61,7 +61,7 @@ def read_csv_to_html_table(csv_file_path):
             if num_value.is_integer():
                 return int(num_value)  # 整数の場合は整数として表示
             else:
-                return f"{num_value:.1f}"  # 小数点以下がある場合は1桁まで表示
+                return f"{num_value:.3f}"  # 小数点以下がある場合は1桁まで表示
         except (ValueError, TypeError):
             # 数値に変換できない場合はそのまま返す
             return x
