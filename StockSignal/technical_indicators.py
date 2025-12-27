@@ -7,12 +7,13 @@
 
 計算対象テクニカル指標：
 1. 移動平均線（SMA）- 短期(5日)、中期(25日)、長期(75日)
-2. MACD（Moving Average Convergence Divergence）
-3. RSI（Relative Strength Index）- 短期(9日)、長期(14日)
-4. RCI（Rank Correlation Index）- 短期(9日)、長期(26日)
-5. 一目均衡表（Ichimoku Cloud）
-6. ボリンジャーバンド（Bollinger Bands）
-7. 移動平均線乖離率（MA Deviation）
+2. 出来高移動平均線（SMA）- 短期(5日)、中期(25日)、長期(75日)
+3. MACD（Moving Average Convergence Divergence）
+4. RSI（Relative Strength Index）- 短期(9日)、長期(14日)
+5. RCI（Rank Correlation Index）- 短期(9日)、長期(26日)
+6. 一目均衡表（Ichimoku Cloud）
+7. ボリンジャーバンド（Bollinger Bands）
+8. 移動平均線乖離率（MA Deviation）
 
 シグナル生成：
 - MACD-RSIシグナル
@@ -65,6 +66,29 @@ def calculate_moving_averages(df: pd.DataFrame) -> pd.DataFrame:
     
     return result
 
+def calculate_volume_moving_averages(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    出来高移動平均線を計算します
+    
+    config.MA_PERIODSで指定された期間の単純移動平均線（SMA）を計算します。
+    出来高移動平均線は出来高のトレンドの方向性や強さを確認するための基本的な指標です。
+    
+    Args:
+        df: 出来高データ（少なくともVolumeカラムが必要）
+        
+    Returns:
+        pd.DataFrame: 出来高移動平均線を追加したデータフレーム（Volume_MA5, Volume_MA25, Volume_MA75）
+    """
+    import config
+    
+    result = df.copy()
+    # 終値の配列を取得
+    volume = df['Volume'].values
+    
+    # 設定された各期間の出来高移動平均線を計算
+    for period in config.MA_PERIODS:
+        result[f'Volume_MA{period}'] = talib.SMA(volume, timeperiod=period)
+    return result
 
 def calculate_trading_signals_MA_Deviation(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -1201,6 +1225,9 @@ def calculate_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # 移動平均線の計算
     result = calculate_moving_averages(result)
     
+    # 出来高移動平均線の計算
+    result = calculate_volume_moving_averages(result)
+    
     # 移動平均線乖離率と前日比率の計算
     result = calculate_ma_deviation_and_change(result)
     
@@ -1594,6 +1621,12 @@ def process_data_for_ticker(ticker: str, data_dir: str, output_dir: str) -> Tupl
         if missing_columns:
             logger.warning(f"銘柄 {ticker} のデータに必要なカラムがありません: {missing_columns}")
             return False, None
+        
+        # データ型の変換：TALibはfloat64（double）型を要求するため、OHLCVカラムを明示的にfloat64に変換
+        # CSVから読み込んだデータがint型やobject型のままになっている可能性がある
+        for col in required_columns:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').astype('float64')
         
         # 欠損値の処理
         # 前方埋め（直前の有効な値で埋める）と後方埋め（直後の有効な値で埋める）を組み合わせて処理

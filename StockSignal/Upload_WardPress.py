@@ -314,7 +314,7 @@ def generate_chart(ticker, company_names, consecutive_tickers=None):
         fig, axes = mpf.plot(
             df_mpf,
             type='candle',
-            mav=(5, 25),
+            mav=(5, 25, 75),
             style=s,
             title=f"{ticker_str} - {company_name}",
             figsize=(9.6, 6.4),  # 960px × 640px (96 DPI)

@@ -405,10 +405,12 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
     latest_signal.csvから押し目の銘柄を抽出してCSVファイルに出力します
     
     以下の条件をすべて満たす銘柄を抽出します：
-    1. "短期移動平均-中期移動平均"の絶対値がその銘柄の最新Close値の2%以下
-    2. 前日の短期移動平均ー中期移動平均よりも最新の短期移動平均ー中期移動平均が大きい
-    3. 中期の移動平均線の前営業日からの変化率が0.3%以上
-    4. 最新の出来高が10万以上
+    1. 中期移動平均線が上昇中
+    2. 終値が短期移動平均線よりも上にある
+    3. 3日以内に短期移動平均線の変動率はマイナスだった日がある
+    4. 中期移動線が長期移動平均線よりも上にある
+    5. 出来高が10万以上
+    6. 出来高が出来高移動平均線よりも上
     
     Args:
         is_test_mode (bool): テストモードの場合はTrue、通常モードの場合はFalse
@@ -422,10 +424,12 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
     logger = logging.getLogger("StockSignal")
     logger.info("押し目銘柄の抽出を開始します")
     logger.info("抽出条件:")
-    logger.info("1. 「短期移動平均-中期移動平均」の絶対値がその銘柄の最新Close値の2%以下")
-    logger.info("2. 前日の短期移動平均ー中期移動平均よりも最新の短期移動平均ー中期移動平均が大きい")
-    logger.info("3. 中期の移動平均線の前営業日からの変化率が0.3%以上")
-    logger.info("4. 最新の出来高が10万以上")
+    logger.info("中期移動平均線が上昇中")
+    logger.info("終値が短期移動平均線よりも上にある")
+    logger.info("3日以内に短期移動平均線の変動率はマイナスだった日がある")
+    logger.info("中期移動線が長期移動平均線よりも上にある")
+    logger.info("出来高が10万以上")
+    logger.info("出来高が出来高移動平均線よりも上")
     
     try:
         # 入力ファイルのパスを設定
@@ -450,18 +454,20 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
             logger.error(f"ファイルが見つかりません: {input_file}")
             return False
         
-        # CSVの読み込み
+        # CSVの読み込み（最新シグナルファイルから銘柄リストを取得）
         logger.info(f"{input_file} を読み込みます")
-        df = pd.read_csv(input_file, index_col=0, parse_dates=True)
+        latest_df = pd.read_csv(input_file, index_col=0, parse_dates=True)
         
         # 各銘柄の短期・中期の移動平均を取得
         # 設定ファイルから移動平均期間を取得 (MA_PERIODS = [5, 25, 75])
         short_ma = f'MA{config.MA_PERIODS[0]}'  # 短期移動平均 (MA5)
         mid_ma = f'MA{config.MA_PERIODS[1]}'    # 中期移動平均 (MA25)
+        long_ma = f'MA{config.MA_PERIODS[2]}'    # 長期移動平均 (MA75)
+        volume_ma = f'Volume_MA{config.MA_PERIODS[1]}'  # 出来高移動平均 (Volume_MA25)
         
         # 必要なカラムの存在確認
-        required_columns = ['Ticker', 'Company', 'Theme', 'Close', 'Volume', short_ma, mid_ma]
-        missing_columns = [col for col in required_columns if col not in df.columns]
+        required_columns = ['Ticker', 'Company', 'Theme']
+        missing_columns = [col for col in required_columns if col not in latest_df.columns]
         if missing_columns:
             logger.error(f"必要なカラムがCSVファイルに見つかりません: {missing_columns}")
             return False
@@ -469,100 +475,89 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
         logger.info("各銘柄の条件判定を開始します")
 
         # 全銘柄のティッカーリストを取得
-        all_tickers = df['Ticker'].unique()
+        all_tickers = latest_df['Ticker'].unique()
         logger.info(f"処理対象の全銘柄数: {len(all_tickers)}")
-
-        # 条件1: "短期移動平均-中期移動平均"の絶対値がその銘柄の最新Close値の2%以下
-        df['MA_Diff'] = df[short_ma] - df[mid_ma]
-        df['MA_Diff_Abs'] = abs(df['MA_Diff'])
-        df['Close_2_Percent'] = df['Close'] * 0.02
-        condition1 = df['MA_Diff_Abs'] <= df['Close_2_Percent']
-
-        # 条件4: 最新の出来高が10万以上
-        condition4 = df['Volume'] >= 100000
-
-        # 条件1と条件4を満たす候補銘柄を抽出
-        potential_tickers = df[condition1 & condition4]['Ticker'].unique()
-
-        logger.info(f"条件1,4を満たす候補銘柄: {len(potential_tickers)}社を検出しました")
-        if len(potential_tickers) > 0:
-            logger.info(f"候補銘柄: {potential_tickers}")
         
-        # 押し目条件を満たす銘柄を格納するリスト
+        # 押し目銘柄を格納するリスト
         push_mark_tickers = []
         
-        # 各候補銘柄について、条件2,3をチェック（前日との比較）
-        for ticker in potential_tickers:
+        # 各銘柄の全期間データを読み込んで条件判定
+        for ticker in all_tickers:
             try:
-                # 個別銘柄のシグナルファイルを読み込む
+                # 各銘柄の全期間データファイルを読み込む
                 ticker_signal_file = os.path.join(input_dir, f"{ticker}_signal.csv")
                 
-                logger.info(f"銘柄 {ticker} の詳細シグナルファイルをチェック: {ticker_signal_file}")
-                
-                # ファイルが存在しない場合はスキップ
                 if not os.path.exists(ticker_signal_file):
-                    logger.warning(f"銘柄 {ticker} のシグナルファイルが見つかりません")
                     continue
                 
-                # シグナルファイルを読み込み
+                # 全期間データを読み込む
                 ticker_df = pd.read_csv(ticker_signal_file, index_col=0, parse_dates=True)
                 
-                # データが2行以上あることを確認（前日データが必要）
-                if len(ticker_df) < 2:
-                    logger.warning(f"銘柄 {ticker} のデータが不足しています (行数: {len(ticker_df)})")
+                # データが3行未満の場合はスキップ（3日以内の変動率チェックができない）
+                if len(ticker_df) < 3:
                     continue
                 
-                # 最新2日分のデータを取得
-                recent_data = ticker_df.tail(2)
+                # 最新日と前日のデータを取得
+                latest_row = ticker_df.iloc[-1]
+                prev_row = ticker_df.iloc[-2]
                 
-                # 前日と当日の短期MA-中期MA差分を計算
-                previous_diff = recent_data.iloc[0][short_ma] - recent_data.iloc[0][mid_ma]
-                current_diff = recent_data.iloc[1][short_ma] - recent_data.iloc[1][mid_ma]
+                # 必要なカラムの存在確認
+                required_cols = ['Close', 'Volume', short_ma, mid_ma, long_ma, volume_ma]
+                if not all(col in ticker_df.columns for col in required_cols):
+                    continue
                 
-                # 前日と当日の中期移動平均を取得
-                previous_mid_ma = recent_data.iloc[0][mid_ma]
-                current_mid_ma = recent_data.iloc[1][mid_ma]
+                # 条件1: 中期移動平均線が上昇中（前日より高い）
+                condition1 = latest_row[mid_ma] > prev_row[mid_ma]
                 
-                # 中期移動平均の前営業日からの変化率を計算
-                mid_ma_change_rate = ((current_mid_ma - previous_mid_ma) / previous_mid_ma) * 100
+                # 条件2: 終値が短期移動平均線よりも上にある
+                condition2 = latest_row['Close'] > latest_row[short_ma]
                 
-                # 条件2の判定結果をログ出力
-                logger.info(f"銘柄 {ticker} の条件2判定:")
-                logger.info(f"  前日差分: {previous_diff:.4f}")
-                logger.info(f"  当日差分: {current_diff:.4f}")
-                logger.info(f"  差分増加: {current_diff > previous_diff}")
+                # 条件3: 3日以内に短期移動平均線の変動率がマイナスだった日がある
+                # 最新3日分のデータを取得
+                recent_3days = ticker_df.tail(3)
+                condition3 = False
+                for i in range(1, len(recent_3days)):
+                    prev_ma = recent_3days.iloc[i-1][short_ma]
+                    curr_ma = recent_3days.iloc[i][short_ma]
+                    # 変動率を計算: (当日 - 前日) / 前日 * 100
+                    if prev_ma > 0:  # ゼロ除算を防ぐ
+                        change_rate = ((curr_ma - prev_ma) / prev_ma) * 100
+                        if change_rate < 0:  # マイナス（下落）の場合
+                            condition3 = True
+                            break
                 
-                # 条件3の判定結果をログ出力
-                logger.info(f"銘柄 {ticker} の条件3判定:")
-                logger.info(f"  前日中期MA: {previous_mid_ma:.4f}")
-                logger.info(f"  当日中期MA: {current_mid_ma:.4f}")
-                logger.info(f"  中期MA変化率: {mid_ma_change_rate:.4f}%")
-                logger.info(f"  変化率0.3%以上: {mid_ma_change_rate >= 0.3}")
+                # 条件4: 中期移動線が長期移動平均線よりも上にある
+                condition4 = latest_row[mid_ma] > latest_row[long_ma]
                 
-                # 条件2: 当日の差分が前日の差分よりも大きい
-                # 条件3: 中期移動平均の前営業日からの変化率が0.3%以上
-                if current_diff > previous_diff and mid_ma_change_rate >= 0.3:
-                    # 該当銘柄をリストに追加
-                    current_row = df[df['Ticker'] == ticker].iloc[0]
+                # 条件5: 出来高が10万以上
+                condition5 = latest_row['Volume'] >= 100000
+                
+                # 条件6: 出来高が出来高移動平均線よりも上
+                condition6 = latest_row['Volume'] > latest_row[volume_ma]
+                
+                # すべての条件を満たす場合
+                if condition1 and condition2 and condition3 and condition4 and condition5 and condition6:
+                    # 会社情報を取得
+                    company_info = latest_df[latest_df['Ticker'] == ticker].iloc[0]
+                    company = company_info.get('Company', '')
+                    theme = company_info.get('Theme', '')
+                    
+                    # 押し目銘柄情報を追加
                     push_mark_tickers.append({
                         'Ticker': ticker,
-                        'Company': current_row['Company'],
-                        'テーマ': current_row['Theme'],
-                        '最新の終値': current_row['Close'],
-                        '短期移動平均': current_row[short_ma],
-                        '中期移動平均': current_row[mid_ma]
+                        'Company': company,
+                        'テーマ': theme,
+                        '最新の終値': latest_row['Close'],
+                        '短期移動平均': latest_row[short_ma],
+                        '中期移動平均': latest_row[mid_ma],
+                        '長期移動平均': latest_row[long_ma],
+                        '出来高': latest_row['Volume'],
+                        '出来高移動平均': latest_row[volume_ma]
                     })
-                    logger.info(f"銘柄 {ticker} はすべての押し目条件を満たしています！")
-                else:
-                    if current_diff <= previous_diff:
-                        logger.info(f"銘柄 {ticker} は条件2を満たしていません（差分増加なし）")
-                    if mid_ma_change_rate < 0.3:
-                        logger.info(f"銘柄 {ticker} は条件3を満たしていません（中期MA変化率0.3%未満: {mid_ma_change_rate:.4f}%）")
+                    
             except Exception as e:
-                logger.error(f"銘柄 {ticker} の処理中にエラーが発生しました: {str(e)}")
-                # エラーのトレースバックを出力（デバッグ用）
-                import traceback
-                logger.error(traceback.format_exc())
+                logger.warning(f"銘柄 {ticker} の処理中にエラーが発生しました: {str(e)}")
+                continue
         
         # 押し目銘柄をデータフレームに変換
         if push_mark_tickers:
@@ -571,6 +566,9 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
             # 数値データの小数点以下桁数を調整
             push_mark_df['短期移動平均'] = push_mark_df['短期移動平均'].round(2)
             push_mark_df['中期移動平均'] = push_mark_df['中期移動平均'].round(2)
+            push_mark_df['長期移動平均'] = push_mark_df['長期移動平均'].round(2)
+            push_mark_df['出来高'] = push_mark_df['出来高'].round(2)
+            push_mark_df['出来高移動平均'] = push_mark_df['出来高移動平均'].round(2)
             
             # 終値の表示形式を調整（小数点以下が0の場合は整数表示、それ以外は小数点以下1桁）
             push_mark_df['最新の終値'] = push_mark_df['最新の終値'].apply(
@@ -589,13 +587,16 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
                 logger.info(f"  {i+1}. {stock['Ticker']} {stock['Company']} ({stock['テーマ']}) "
                            f"終値: {stock['最新の終値']}, "
                            f"短期MA: {stock['短期移動平均']:.2f}, "
-                           f"中期MA: {stock['中期移動平均']:.2f}")
+                           f"中期MA: {stock['中期移動平均']:.2f}",
+                           f"長期MA: {stock['長期移動平均']:.2f}",
+                           f"出来高: {stock['出来高']}",
+                           f"出来高移動平均: {stock['出来高移動平均']:.2f}")
         else:
             logger.info("条件を満たす押し目銘柄は見つかりませんでした")
             
             # 空のデータフレームを作成して出力
             empty_df = pd.DataFrame(columns=[
-                'Ticker', 'Company', 'テーマ', '最新の終値', '短期移動平均', '中期移動平均'
+                'Ticker', 'Company', 'テーマ', '最新の終値', '短期移動平均', '中期移動平均', '長期移動平均', '出来高', '出来高移動平均'
             ])
             output_file = os.path.join(output_dir, "push_mark.csv")
             empty_df.to_csv(output_file, index=False, encoding='utf-8-sig')
