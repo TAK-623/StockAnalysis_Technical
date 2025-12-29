@@ -89,9 +89,9 @@ def main():
             signal_results = calculate_signals(tickers, is_test_mode)
             logger.info("テクニカル指標の計算が完了しました。")
             
-            # 計算されたテクニカル指標に基づいて売買シグナルを抽出
-            logger.info("Buy/Sellシグナルの抽出を開始します...")
-            extract_success = extract_signals(is_test_mode)
+            # 計算されたテクニカル指標に基づいて売買シグナルを抽出（2025/12/27 休止）
+            # logger.info("Buy/Sellシグナルの抽出を開始します...")
+            # extract_success = extract_signals(is_test_mode)
             
             # シグナル抽出後にブレイク銘柄の抽出処理を実行
             logger.info("ブレイク銘柄の抽出を開始します...")
@@ -103,31 +103,31 @@ def main():
             else:
                 logger.error("ブレイク銘柄の抽出中にエラーが発生しました。")
             
-            # シグナル抽出の結果をログに記録
-            if extract_success:
-                logger.info("Buy/Sellシグナルの抽出が完了しました。")
-            else:
-                logger.error("Buy/Sellシグナルの抽出中にエラーが発生しました。")
+            # # シグナル抽出の結果をログに記録（2025/12/27 休止）
+            # if extract_success:
+            #     logger.info("Buy/Sellシグナルの抽出が完了しました。")
+            # else:
+            #     logger.error("Buy/Sellシグナルの抽出中にエラーが発生しました。")
             
-            # シグナル抽出後に強気トレンド銘柄の抽出処理を実行
-            logger.info("強気トレンド銘柄の抽出を開始します...")
-            strong_buying_success = extract_strong_buying_trend(is_test_mode)
+            # シグナル抽出後に強気トレンド銘柄の抽出処理を実行（2025/12/27 休止）
+            # logger.info("強気トレンド銘柄の抽出を開始します...")
+            # strong_buying_success = extract_strong_buying_trend(is_test_mode)
                         
-            # 強気トレンド抽出の結果をログに記録
-            if strong_buying_success:
-                logger.info("強気トレンド銘柄の抽出が完了しました。")
-            else:
-                logger.error("強気トレンド銘柄の抽出中にエラーが発生しました。")
+            # 強気トレンド抽出の結果をログに記録（2025/12/27 休止）
+            # if strong_buying_success:
+            #     logger.info("強気トレンド銘柄の抽出が完了しました。")
+            # else:
+            #     logger.error("強気トレンド銘柄の抽出中にエラーが発生しました。")
 
-            # 強気トレンド銘柄抽出後に、強気売りトレンド銘柄の抽出処理を実行
-            logger.info("強気売りトレンド銘柄の抽出を開始します...")
-            strong_selling_success = extract_strong_selling_trend(is_test_mode)
+            # 強気トレンド銘柄抽出後に、強気売りトレンド銘柄の抽出処理を実行（2025/12/27 休止）
+            # logger.info("強気売りトレンド銘柄の抽出を開始します...")
+            # strong_selling_success = extract_strong_selling_trend(is_test_mode)
                         
-            # 強気売りトレンド抽出の結果をログに記録
-            if strong_selling_success:
-                logger.info("強気売りトレンド銘柄の抽出が完了しました。")
-            else:
-                logger.error("強気売りトレンド銘柄の抽出中にエラーが発生しました。")
+            # 強気売りトレンド抽出の結果をログに記録（2025/12/27 休止）
+            # if strong_selling_success:
+            #     logger.info("強気売りトレンド銘柄の抽出が完了しました。")
+            # else:
+            #     logger.error("強気売りトレンド銘柄の抽出中にエラーが発生しました。")
             
             # 押し目銘柄の抽出処理を実行
             logger.info("押し目銘柄の抽出を開始します...")
@@ -139,18 +139,18 @@ def main():
             else:
                 logger.error("押し目銘柄の抽出中にエラーが発生しました。")
             
-            # BB-MACDシグナル抽出処理を実行（extract_signals.pyと同じ場所に出力）
-            logger.info("BB-MACDシグナル銘柄の抽出を開始します...")
-            bb_macd_results = extract_BB_MACD_signals(is_test_mode)
+            # BB-MACDシグナル抽出処理を実行（extract_signals.pyと同じ場所に出力）（2025/12/27 休止）
+            # logger.info("BB-MACDシグナル銘柄の抽出を開始します...")
+            # bb_macd_results = extract_BB_MACD_signals(is_test_mode)
 
-            # BB-MACDシグナル抽出の結果をログに記録
-            if bb_macd_results:
-                logger.info("BB-MACDシグナル銘柄の抽出が完了しました。")
+            # BB-MACDシグナル抽出の結果をログに記録（2025/12/27 休止）
+            # if bb_macd_results:
+            #     logger.info("BB-MACDシグナル銘柄の抽出が完了しました。")
                 
                 # サマリー統計の取得と表示
                 # summary = get_BB_MACD_signal_summary(is_test_mode)
-            else:
-                logger.error("BB-MACDシグナル銘柄の抽出中にエラーが発生しました。")
+            # else:
+            #     logger.error("BB-MACDシグナル銘柄の抽出中にエラーが発生しました。")
                 
             # 一目均衡表のシグナル抽出処理を実行
             logger.info("一目均衡表情報の抽出を開始します...")

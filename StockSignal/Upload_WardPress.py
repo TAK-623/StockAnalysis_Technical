@@ -11,11 +11,8 @@ WordPress投稿モジュール - 株価分析結果の自動投稿・チャー�
 6. 日本語フォント対応のチャート出力
 
 投稿内容：
-- 各種売買シグナル銘柄一覧
-- 強気/弱気トレンド銘柄一覧
 - レンジブレイク銘柄一覧（チャート付き）
 - 押し目銘柄一覧
-- BB-MACDシグナル銘柄一覧
 - 一目均衡表シグナル銘柄一覧
 
 使用技術：
@@ -85,10 +82,6 @@ intro_text = """
 <p>S: スタンダード市場の銘柄</p>
 <p>G: グロース市場の銘柄</p>
 </div>
-<p></p>
-<p>シグナルはMACDとRSIをもとに算出したものと、MACDとRCIをもとに算出したもの、MACDとRSIとRCIをもとに算出したものの3種類を挙げています。</p>
-<p>強いトレンド銘柄は買いトレンドと売りトレンドの両方の銘柄を挙げています。</p>
-<p>レンジブレイク銘柄は、直近1か月の高値をブレイクした銘柄を挙げています。</p>
 <p></p>
 """.format(current_date=current_date)
 
@@ -683,12 +676,6 @@ def generate_push_mark_charts(push_mark_csv_file_path, company_names, consecutiv
         print(f"押し目銘柄のチャート生成でエラー: {e}")
         return ""
 
-
-
-
-
-
-
 def main():
     """
     メイン処理：CSVファイルの読み込み、HTML変換、WordPress投稿を実行
@@ -700,46 +687,18 @@ def main():
     
     # 読み込むCSVファイルのパス
     # ここを変更：StockSignal → StockAnalysis_Technical
-    macd_rsi_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_signal_result_buy.csv"   # 買いシグナルCSV
-    macd_rsi_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_signal_result_sell.csv" # 売りシグナルCSV
-    macd_rci_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rci_signal_result_buy.csv"   # 買いシグナルCSV
-    macd_rci_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rci_signal_result_sell.csv" # 売りシグナルCSV
-    macd_rsi_rci_signal_buy_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_buy.csv"   # 買いシグナルCSV
-    macd_rsi_rci_signal_sell_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_rsi_rci_signal_result_sell.csv" # 売りシグナルCSV
     breakout_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\Breakout.csv" # ブレイク銘柄CSV
-    strong_buying_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_buying_trend.csv" # 強い買いトレンド銘柄抽出
-    strong_selling_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\strong_selling_trend.csv" # 強い売りトレンド銘柄抽出
-    bb_macd_buy_signals_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_bb_signal_result_buy.csv" # BB-MACD買いシグナル銘柄抽出
-    bb_macd_sell_signals_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\macd_bb_signal_result_sell.csv" # BB-MACD売りシグナル銘柄抽出
     push_mark_csv_file_path = "C:\\Users\\mount\\Git\\StockAnalysis_Technical\\StockSignal\\Result\\push_mark.csv" # 押し目狙い銘柄抽出
     
     # 各CSVファイルを読み込んで、銘柄コード(Ticker)列で昇順ソートして再保存
     # 表示時に銘柄コードでソートされた状態にするため
-    for file_path in [macd_rsi_signal_buy_csv_file_path, macd_rsi_signal_sell_csv_file_path, macd_rci_signal_buy_csv_file_path, macd_rci_signal_sell_csv_file_path, macd_rsi_rci_signal_buy_csv_file_path, macd_rsi_rci_signal_sell_csv_file_path, macd_rsi_rci_signal_sell_csv_file_path, bb_macd_buy_signals_csv_file_path, bb_macd_sell_signals_csv_file_path]:
+    for file_path in [breakout_csv_file_path, push_mark_csv_file_path]:
         df = pd.read_csv(file_path, encoding='utf-8')    # CSVファイルを読み込み
         df_sorted = df.sort_values(by='Ticker')          # Ticker列で昇順ソート
         df_sorted.to_csv(file_path, index=False, encoding='utf-8')  # ソート結果を上書き保存
     
     # CSVデータをHTML表に変換（各テーブルの銘柄数も取得）
-    html_table_macd_rsi_buy, macd_rsi_buy_count = read_csv_to_html_table(macd_rsi_signal_buy_csv_file_path)   # 買いシグナルテーブル
-    html_table_macd_rsi_sell, macd_rsi_sell_count = read_csv_to_html_table(macd_rsi_signal_sell_csv_file_path) # 売りシグナルテーブル
-    html_table_macd_rci_buy, macd_rci_buy_count = read_csv_to_html_table(macd_rci_signal_buy_csv_file_path)   # 買いシグナルテーブル
-    html_table_macd_rci_sell, macd_rci_sell_count = read_csv_to_html_table(macd_rci_signal_sell_csv_file_path) # 売りシグナルテーブル
-    html_table_macd_rsi_rci_buy, macd_rsi_rci_buy_count = read_csv_to_html_table(macd_rsi_rci_signal_buy_csv_file_path)   # 買いシグナルテーブル
-    html_table_macd_rsi_rci_sell, macd_rsi_rci_sell_count = read_csv_to_html_table(macd_rsi_rci_signal_sell_csv_file_path) # 売りシグナルテーブル
-    # ブレイク銘柄ファイルのパスを動的に決定（Breakout.csvが存在しない場合はRange_Brake.csvを使用）
-    breakout_file_path = breakout_csv_file_path
-    if not os.path.exists(breakout_file_path):
-        range_brake_path = breakout_csv_file_path.replace("Breakout.csv", "Range_Brake.csv")
-        if os.path.exists(range_brake_path):
-            breakout_file_path = range_brake_path
-            print(f"Breakout.csvが見つからないため、Range_Brake.csvを使用します: {range_brake_path}")
-    
-    html_table_breakout, breakout_count = read_csv_to_html_table(breakout_file_path) # ブレイク銘柄テーブル
-    html_table_strong_buying, strong_buying_count = read_csv_to_html_table(strong_buying_csv_file_path) # 強い買いトレンド銘柄テーブル
-    html_table_strong_selling, strong_selling_count = read_csv_to_html_table(strong_selling_csv_file_path) # 強い売りトレンド銘柄テーブル
-    html_table_bb_macd_buy, bb_macd_buy_count = read_csv_to_html_table(bb_macd_buy_signals_csv_file_path) # BB-MACD買いシグナル銘柄テーブル
-    html_table_bb_macd_sell, bb_macd_sell_count = read_csv_to_html_table(bb_macd_sell_signals_csv_file_path) # BB-MACD売りシグナル銘柄テーブル
+    html_table_breakout, breakout_count = read_csv_to_html_table(breakout_csv_file_path) # ブレイク銘柄テーブル
     html_table_push_mark, push_mark_count = read_csv_to_html_table(push_mark_csv_file_path) # 押し目狙い銘柄テーブル
     
     # 投稿のタイトルと内容を作成
@@ -750,207 +709,6 @@ def main():
     # 初期状態では折りたたまれており、クリックで展開される
     post_content = f"""
         {intro_text}
-        <h2>MACD & RSIによる売買シグナル</h2>
-        <p>MACDとRSIによるシグナルは下記の条件で導出しています。</p>
-        [st-mybox title="買いシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
-        <ol>
-        <li>MACDがMACDシグナルを上回っている</li>
-        <li>RSI短期がRSI長期を上回っている</li>
-        <li>RSI長期が40以下</li>
-        </ol>
-        [/st-mybox]
-        [st-mybox title="売りシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
-        <ol>
-        <li>MACDがMACDシグナルを下回っている</li>
-        <li>RSI短期がRSI長期を下回っている</li>
-        <li>RSI長期が60以上</li>
-        </ol>
-        [/st-mybox]
-        <h3>買いシグナル銘柄（{macd_rsi_buy_count}銘柄）</h3>
-        <p><!-- wp:st-blocks/st-slidebox --></p>
-        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-        <div class="st-slidebox" data-st-slidebox-content="">
-        <div class="scroll-box">
-        買いシグナルテーブル
-        {html_table_macd_rsi_buy}
-        </div>
-        </div>
-        </div>
-        <p><!-- /wp:st-blocks/st-slidebox --></p>
-        
-        <h3>売りシグナル銘柄（{macd_rsi_sell_count}銘柄）</h3>
-        <p><!-- wp:st-blocks/st-slidebox --></p>
-        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-        <div class="st-slidebox" data-st-slidebox-content="">
-        <div class="scroll-box">
-        売りシグナルテーブル
-        {html_table_macd_rsi_sell}
-        </div>
-        </div>
-        </div>
-        <p><!-- /wp:st-blocks/st-slidebox --></p>
-
-        <h2>MACD & RCIによる売買シグナル</h2>
-        <p>MACDとRCIによるシグナルは下記の条件で導出しています。</p>
-        [st-mybox title="買いシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
-        <ol>
-        <li>MACDがMACDシグナルを上回っている</li>
-        <li>RCI短期が50%を上回る</li>
-        <li>RCI長期が過去5営業日内に-80%を上回る</li>
-        </ol>
-        [/st-mybox]
-        [st-mybox title="売りシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
-        <ol>
-        <li>MACDがMACDシグナルを下回っている</li>
-        <li>RCI短期が-50%を下回る</li>
-        <li>RCI長期が過去5営業日内に80%を下回る</li>
-        </ol>
-        [/st-mybox]
-        <p></p>
-        <h3>買いシグナル銘柄（{macd_rci_buy_count}銘柄）</h3>
-        <p><!-- wp:st-blocks/st-slidebox --></p>
-        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-        <div class="st-slidebox" data-st-slidebox-content="">
-        <div class="scroll-box">
-        買いシグナルテーブル
-        {html_table_macd_rci_buy}
-        </div>
-        </div>
-        </div>
-        <p><!-- /wp:st-blocks/st-slidebox --></p>
-        
-        <h3>売りシグナル銘柄（{macd_rci_sell_count}銘柄）</h3>
-        <p><!-- wp:st-blocks/st-slidebox --></p>
-        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-        <div class="st-slidebox" data-st-slidebox-content="">
-        <div class="scroll-box">
-        売りシグナルテーブル
-        {html_table_macd_rci_sell}
-        </div>
-        </div>
-        </div>
-        <p><!-- /wp:st-blocks/st-slidebox --></p>
-
-        <h2>MACD & RSI と MACD & RCI による売買シグナル</h2>
-        <p>上記のMACDとRSIによる条件とMACDとRCIによる条件の両方を満たしている銘柄です。</p>
-        <p></p>
-        <h3>買いシグナル銘柄（{macd_rsi_rci_buy_count}銘柄）</h3>
-        <p><!-- wp:st-blocks/st-slidebox --></p>
-        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-        <div class="st-slidebox" data-st-slidebox-content="">
-        <div class="scroll-box">
-        買いシグナルテーブル
-        {html_table_macd_rsi_rci_buy}
-        </div>
-        </div>
-        </div>
-        <p><!-- /wp:st-blocks/st-slidebox --></p>
-        
-        <h3>売りシグナル銘柄（{macd_rsi_rci_sell_count}銘柄）</h3>
-        <p><!-- wp:st-blocks/st-slidebox --></p>
-        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-        <div class="st-slidebox" data-st-slidebox-content="">
-        <div class="scroll-box">
-        売りシグナルテーブル
-        {html_table_macd_rsi_rci_sell}
-        </div>
-        </div>
-        </div>
-        <p><!-- /wp:st-blocks/st-slidebox --></p>
-        
-        <h2>MACD & ボリンジャーバンドによる売買シグナル</h2>
-        <p>MACDとボリンジャーバンドによるシグナルは下記の条件で導出しています。</p>
-        [st-mybox title="買いシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
-        <ol>
-        <li>終値が20SMA（BB_Middle）を上回る</li>
-        <li>終値が高値と安値の中間よりも上（上髭が短い）</li>
-        <li>直近1営業日内にMACDのゴールデンクロス発生</li>
-        </ol>
-        [/st-mybox]
-        [st-mybox title="売りシグナルの条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
-        <ol>
-        <li>終値が20SMA（BB_Middle）を下回る</li>
-        <li>終値が高値と安値の中間よりも下（下髭が短い）</li>
-        <li>直近1営業日内にMACDのデッドクロス発生</li>
-        </ol>
-        [/st-mybox]
-        <p></p>
-        <h3>買いシグナル銘柄（{bb_macd_buy_count}銘柄）</h3>
-        <p><!-- wp:st-blocks/st-slidebox --></p>
-        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-        <div class="st-slidebox" data-st-slidebox-content="">
-        <div class="scroll-box">
-        買いシグナルテーブル
-        {html_table_bb_macd_buy}
-        </div>
-        </div>
-        </div>
-        <p><!-- /wp:st-blocks/st-slidebox --></p>
-        
-        <h3>売りシグナル銘柄（{bb_macd_sell_count}銘柄）</h3>
-        <p><!-- wp:st-blocks/st-slidebox --></p>
-        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-        <div class="st-slidebox" data-st-slidebox-content="">
-        <div class="scroll-box">
-        売りシグナルテーブル
-        {html_table_bb_macd_sell}
-        </div>
-        </div>
-        </div>
-        <p><!-- /wp:st-blocks/st-slidebox --></p>
-        
-        <h2>強いトレンド銘柄</h2>
-        <p>目先のトレンドが強い銘柄を下記の条件で抽出しています。</p>
-        [st-mybox title="強い買いトレンド抽出の条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
-        <ol>
-        <li>前の営業日の短期移動平均と中期移動平均の差分よりも、最新の短期移動平均と中期移動平均の差分の方が大きい</li>
-        <li>「短期移動平均 ＞ 中期移動平均 ＞ 長期移動平均」の関係が成立している</li>
-        <li>最新の終値が短期移動平均よりも高い</li>
-        <li>出来高が100,000以上</li>
-        </ol>
-        [/st-mybox]
-        [st-mybox title="強い売りトレンド抽出の条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
-        <ol>
-        <li>前の営業日の中期移動平均と短期移動平均の差分よりも、最新の中期移動平均と短期移動平均の差分の方が大きい</li>
-        <li>「短期移動平均 ＜ 中期移動平均 ＜ 長期移動平均」の関係が成立している</li>
-        <li>最新の終値が短期移動平均よりも安い</li>
-        <li>出来高が100,000以上</li>
-        </ol>
-        [/st-mybox]
-        <h3>強い買いトレンド銘柄（{strong_buying_count}銘柄）</h3>
-        <p><!-- wp:st-blocks/st-slidebox --></p>
-        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-        <div class="st-slidebox" data-st-slidebox-content="">
-        <div class="scroll-box">
-        強い買いトレンド銘柄テーブル
-        {html_table_strong_buying}
-        </div>
-        </div>
-        </div>
-        <p><!-- /wp:st-blocks/st-slidebox --></p>
-        
-        <h3>強い売りトレンド銘柄（{strong_selling_count}銘柄）</h3>
-        <p><!-- wp:st-blocks/st-slidebox --></p>
-        <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
-        <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
-        <div class="st-slidebox" data-st-slidebox-content="">
-        <div class="scroll-box">
-        強い売りトレンド銘柄テーブル
-        {html_table_strong_selling}
-        </div>
-        </div>
-        </div>
-        <p><!-- /wp:st-blocks/st-slidebox --></p>
-
         <h2>押し目狙い銘柄 ({push_mark_count})</h2>
         <p>短期移動平均が中期移動平均に近付いた、押し目狙いの銘柄です。</p>
         <p>下記の条件で抽出しています。
