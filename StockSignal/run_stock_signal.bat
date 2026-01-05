@@ -9,14 +9,14 @@ python Upload_WardPress.py
 echo WordPressへのアップロードが完了しました。
 echo Xへポストしています...
 python ../X_twitter/post_wp_to_x.py
-echo 一目均衡表情報のWordPressへのアップロードを開始します...
-python Upload_WardPress_Ichimoku.py
-echo 一目均衡表情報のWordPressへのアップロードが完了しました。
+@REM echo 一目均衡表情報のWordPressへのアップロードを開始します...
+@REM python Upload_WardPress_Ichimoku.py
+@REM echo 一目均衡表情報のWordPressへのアップロードが完了しました。
 @REM echo CSVファイルのアップロードを開始します...
 @REM python Upload_csv.py
-echo 3分間待機・・・
-timeout /t 180 /nobreak
-echo Xへポストしています...
-python ../X_twitter/post_wp_to_x.py
+@REM echo 3分間待機・・・
+@REM timeout /t 180 /nobreak
+@REM echo Xへポストしています...
+@REM python ../X_twitter/post_wp_to_x.py
 echo すべての処理が完了しました。
 pause
