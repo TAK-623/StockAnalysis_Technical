@@ -173,9 +173,9 @@ def identify_breakouts(is_test_mode: bool = False) -> bool:
                 else:
                     condition1 = latest_data['Close'] >= previous_data['High'].max()
                 
-                # 条件2: 最新の出来高が直近1か月の移動平均の1.5倍よりも多いか
-                volume_ma = three_month_data['Volume'].mean()
-                condition2 = latest_data['Volume'] > volume_ma * 1.0  # 移動平均の1.0倍を超えているか
+                # 条件2: 最新の出来高が直近1か月の移動平均の1.5倍よりも多いか 2026/2/16 移動平均を使用しない
+                # volume_ma = three_month_data['Volume'].mean()
+                # condition2 = latest_data['Volume'] > volume_ma * 1.0  # 移動平均の1.0倍を超えているか
                 
                 # 条件3: 出来高が10万以上であるか
                 condition3 = latest_data['Volume'] >= 100000
@@ -220,7 +220,7 @@ def identify_breakouts(is_test_mode: bool = False) -> bool:
                 
                 # すべての条件を満たす場合、結果リストに追加
                 # if condition1 and condition2 and condition3 and condition4 and condition5:
-                if condition1 and condition2 and condition3 and condition4 and condition5:
+                if condition1 and condition3 and condition4 and condition5: # condition2を使用しない(2026/2/16)
                     # 企業情報を取得（マッピングに存在しない場合は空文字）
                     company_info = company_info_map.get(ticker, {'company': '', 'theme': ''})
                     company_name = company_info.get('company', '')
