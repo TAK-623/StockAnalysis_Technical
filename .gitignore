@@ -1,0 +1,7 @@
+*.csv
+*.png
+*.log
+*.json
+*.env
+__pycache__/
+**/__pycache__/
