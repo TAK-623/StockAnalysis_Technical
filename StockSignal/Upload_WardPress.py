@@ -702,7 +702,7 @@ def main():
     html_table_push_mark, push_mark_count = read_csv_to_html_table(push_mark_csv_file_path) # 押し目狙い銘柄テーブル
     
     # 投稿のタイトルと内容を作成
-    post_title = "【日本株】売買シグナル抽出結果_{current_date}_今日の押し目買い狙い&ブレイクアウト銘柄".format(current_date=current_date)  # 投稿タイトル
+    post_title = "【日本株】銘柄抽出結果_{current_date} | 今日の押し目買い狙い&ブレイクアウト銘柄".format(current_date=current_date)  # 投稿タイトル
     
     # 投稿本文のHTML構成
     # WordPressテーマ「AFFINGER」用のスライドボックスブロックを使用
