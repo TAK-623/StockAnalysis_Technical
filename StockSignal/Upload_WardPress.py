@@ -714,12 +714,12 @@ def main():
         <p>下記の条件で抽出しています。
         </p>[st-mybox title="押し目狙い銘柄を抽出する条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
         <ol>
-        <li>中期移動平均線（MA25）が上昇中（前日より高い）</li>
-        <li>終値が短期移動平均線（MA5）より上</li>
-        <li>直近3日以内に、短期移動平均線（MA5）の変動率がマイナスの日が1日以上ある</li>
-        <li>中期移動線（MA25）が長期移動平均線（MA75）より上</li>
-        <li>出来高が10万以上（>= 100000）</li>
-        <li>出来高が出来高移動平均線（Volume_MA25）より多い</li>
+        <li>中期移動平均線が上昇中（前日より高い）</li>
+        <li>終値が短期移動平均線より上</li>
+        <li>直近3日以内に、短期移動平均線の変動率がマイナスの日が1日以上ある</li>
+        <li>中期移動線が長期移動平均線より上</li>
+        <li>出来高が10万以上</li>
+        <li>出来高が出来高移動平均線より多い</li>
         </ol>
         [/st-mybox]        
         <p><!-- wp:st-blocks/st-slidebox --></p>
