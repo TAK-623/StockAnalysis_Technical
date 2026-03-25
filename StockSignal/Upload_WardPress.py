@@ -710,14 +710,16 @@ def main():
     post_content = f"""
         {intro_text}
         <h2>押し目狙い銘柄 ({push_mark_count})</h2>
-        <p>短期移動平均が中期移動平均に近付いた、押し目狙いの銘柄です。</p>
+        <p>中期移動平均が上昇中で、終値が短期移動平均より上、直近で短期移動平均が下落した日があり、出来高も条件を満たす押し目狙いの銘柄です。</p>
         <p>下記の条件で抽出しています。
         </p>[st-mybox title="押し目狙い銘柄を抽出する条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
         <ol>
-        <li>「短期移動平均-中期移動平均」の絶対値がその銘柄の最新Close値の2%以下</li>
-        <li>短期移動平均と中期移動平均の差が+方向に広がった</li>
-        <li>中期移動平均線が上向いている(前営業日からの変化率が0.3%以上)</li>
-        <li>最新の出来高が10万以上</li>
+        <li>中期移動平均線（MA25）が上昇中（前日より高い）</li>
+        <li>終値が短期移動平均線（MA5）より上</li>
+        <li>直近3日以内に、短期移動平均線（MA5）の変動率がマイナスの日が1日以上ある</li>
+        <li>中期移動線（MA25）が長期移動平均線（MA75）より上</li>
+        <li>出来高が10万以上（>= 100000）</li>
+        <li>出来高が出来高移動平均線（Volume_MA25）より多い</li>
         </ol>
         [/st-mybox]        
         <p><!-- wp:st-blocks/st-slidebox --></p>
@@ -750,10 +752,10 @@ def main():
         <p>下記の条件で抽出しています。
         </p>[st-mybox title="ブレイク銘柄を抽出する条件" webicon="st-svg-check-circle" color="#03A9F4" bordercolor="#B3E5FC" bgcolor="#E1F5FE" borderwidth="2" borderradius="5" titleweight="bold"]
         <ol>
-        <li>最新の終値が過去3か月間の最高値を上回っている</li>
-        <li>最新の出来高が過去3か月間の出来高平均値の1.0倍よりも多い</li>
-        <li>終値が高値と安値の中間値よりも高い</li>
-        <li>最新の出来高が10万以上</li>
+        <li>最新の終値（Close）が、直近3か月の高値を更新</li>
+        <li>出来高が10万以上</li>
+        <li>終値が高値と安値の中間より上</li>
+        <li>陽線（終値が始値より上）</li>
         </ol>
         [/st-mybox]        
         <p><!-- wp:st-blocks/st-slidebox --></p>
