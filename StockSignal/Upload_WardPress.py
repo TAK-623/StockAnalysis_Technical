@@ -721,7 +721,7 @@ def main():
         <li>陽線で引けている</li>
         </ol>
         [/st-mybox]        
-        <p><a href="https://www.takstorage.site/%e3%83%96%e3%83%ac%e3%82%a4%e3%82%af%e3%82%a2%e3%82%a6%e3%83%88%e5%80%99%e8%a3%9c%e9%8a%98%e6%9f%84%e3%81%ae%e6%8a%bd%e5%87%ba%e6%9d%a1%e4%bb%b6%e3%81%a8%e3%81%af%e3%82%a8%e3%83%b3%e3%83%88/" target="_blank" rel="noopener noreferrer"><strong>解説記事はコチラ</strong></a></p>
+        <p><a href="https://www.takstorage.site/%e3%83%96%e3%83%ac%e3%82%a4%e3%82%af%e3%82%a2%e3%82%a6%e3%83%88%e5%80%99%e8%a3%9c%e9%8a%98%e6%9f%84%e3%81%ae%e6%8a%bd%e5%87%ba%e6%9d%a1%e4%bb%b6%e3%81%a8%e3%81%af%ef%bc%9f%e3%82%a8%e3%83%b3%e3%83%88/" target="_blank" rel="noopener noreferrer"><strong>解説記事はコチラ</strong></a></p>
         <p><!-- wp:st-blocks/st-slidebox --></p>
         <div class="wp-block-st-blocks-st-slidebox st-slidebox-c is-collapsed has-st-toggle-icon is-st-toggle-position-left is-st-toggle-icon-position-left" data-st-slidebox="">
         <p class="st-btn-open" data-st-slidebox-toggle=""><i class="st-fa st-svg-plus-thin" data-st-slidebox-icon="" data-st-slidebox-icon-collapsed="st-svg-plus-thin" data-st-slidebox-icon-expanded="st-svg-minus-thin" aria-hidden=""></i><span class="st-slidebox-btn-text" data-st-slidebox-text="" data-st-slidebox-text-collapsed="クリックして展開" data-st-slidebox-text-expanded="閉じる">クリックして下さい</span></p>
