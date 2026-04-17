@@ -26,7 +26,7 @@ def test_candlestick_colors():
     テスト内容：
     1. 最新5日分のデータ表示（Open/Close値と色判定）
     2. mplfinanceを使用したローソク足チャート生成
-    3. 移動平均線（5日・25日）の表示
+    3. 移動平均線（5日・20日）の表示
     4. 出来高の表示
     5. カスタムカラー設定の適用確認
     """
@@ -64,7 +64,7 @@ def test_candlestick_colors():
     mpf.plot(
         df_mpf,
         type='candle',
-        mav=(5, 25),
+        mav=(5, 20),
         volume=True,
         style=s,
         title="2201 - テスト用ローソク足チャート",

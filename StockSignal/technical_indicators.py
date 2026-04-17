@@ -6,8 +6,8 @@
 また、複数銘柄の一括処理や結果の保存機能も備えています。
 
 計算対象テクニカル指標：
-1. 移動平均線（SMA）- 短期(5日)、中期(25日)、長期(75日)
-2. 出来高移動平均線（SMA）- 短期(5日)、中期(25日)、長期(75日)
+1. 移動平均線（SMA）- 短期(5日)、中期(20日)、長期(60日)
+2. 出来高移動平均線（SMA）- 短期(5日)、中期(20日)、長期(60日)
 3. MACD（Moving Average Convergence Divergence）
 4. RSI（Relative Strength Index）- 短期(9日)、長期(14日)
 5. RCI（Rank Correlation Index）- 短期(9日)、長期(26日)
@@ -50,7 +50,7 @@ def calculate_moving_averages(df: pd.DataFrame) -> pd.DataFrame:
         df: 株価データ（少なくともCloseカラムが必要）
         
     Returns:
-        pd.DataFrame: 移動平均線を追加したデータフレーム（MA5, MA25, MA75など）
+        pd.DataFrame: 移動平均線を追加したデータフレーム（MA5, MA20, MA60など）
     """
     import config
     
