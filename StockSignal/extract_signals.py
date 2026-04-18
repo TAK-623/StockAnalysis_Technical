@@ -459,11 +459,11 @@ def extract_push_mark_signals(is_test_mode: bool = False) -> bool:
         latest_df = pd.read_csv(input_file, index_col=0, parse_dates=True)
         
         # 各銘柄の短期・中期の移動平均を取得
-        # 設定ファイルから移動平均期間を取得 (MA_PERIODS = [5, 25, 75])
+        # 設定ファイルから移動平均期間を取得 (MA_PERIODS = [5, 20, 60])
         short_ma = f'MA{config.MA_PERIODS[0]}'  # 短期移動平均 (MA5)
-        mid_ma = f'MA{config.MA_PERIODS[1]}'    # 中期移動平均 (MA25)
-        long_ma = f'MA{config.MA_PERIODS[2]}'    # 長期移動平均 (MA75)
-        volume_ma = f'Volume_MA{config.MA_PERIODS[1]}'  # 出来高移動平均 (Volume_MA25)
+        mid_ma = f'MA{config.MA_PERIODS[1]}'    # 中期移動平均 (MA20)
+        long_ma = f'MA{config.MA_PERIODS[2]}'    # 長期移動平均 (MA60)
+        volume_ma = f'Volume_MA{config.MA_PERIODS[1]}'  # 出来高移動平均 (Volume_MA20)
         
         # 必要なカラムの存在確認
         required_columns = ['Ticker', 'Company', 'Theme']
