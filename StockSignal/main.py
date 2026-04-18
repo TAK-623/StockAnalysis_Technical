@@ -1,9 +1,8 @@
 """
 メインスクリプト - 株価データ取得・分析・シグナル抽出の統合実行エントリーポイント
 
-このスクリプトは株価データの取得、テクニカル指標の計算、売買シグナルの抽出、
-レンジブレイク銘柄の検出、強気/弱気トレンド銘柄の抽出、押し目銘柄の検出、
-BB-MACDシグナル抽出、一目均衡表シグナル抽出までの一連の処理を統合的に実行します。
+このスクリプトは株価データの取得、テクニカル指標の計算、ブレイクアウト銘柄の検出、
+押し目銘柄の検出までの一連の処理を統合的に実行します。
 
 WordPress投稿とチャート生成は別スクリプト（Upload_WardPress.py）で実行されます。
 """
@@ -23,8 +22,7 @@ import config  # 設定値を管理するモジュール
 from data_loader import setup_logger, load_company_list  # ロガー設定と企業リスト読み込み関数
 from stock_fetcher import fetch_stock_data  # 株価データを取得する関数
 from technical_indicators import calculate_signals  # テクニカル指標を計算する関数
-from technical_indicators import extract_BB_MACD_signals, get_BB_MACD_signal_summary
-from extract_signals import extract_signals, extract_strong_buying_trend, extract_strong_selling_trend, extract_all_ichimoku_signals, extract_push_mark_signals  # 売買シグナルとトレンド銘柄を抽出する関数
+from extract_signals import extract_push_mark_signals  # 押し目銘柄を抽出する関数
 from breakout import identify_breakouts  # ブレイク銘柄抽出関数
 from result_backup import backup_previous_results  # 前回結果のバックアップ機能
 
@@ -38,12 +36,9 @@ def main():
     3. 企業リストの読み込み
     4. 株価データの取得（yfinance API使用）
     5. テクニカル指標の計算（移動平均、RSI、MACD、RCI、一目均衡表など）
-    6. 売買シグナルの抽出（MACD-RSI、MACD-RCI、BB-MACD）
-    7. レンジブレイク銘柄の検出
-    8. 強気/弱気トレンド銘柄の抽出
-    9. 押し目銘柄の検出
-    10. 一目均衡表シグナルの抽出
-    
+    6. ブレイクアウト銘柄の検出
+    7. 押し目銘柄の検出
+
     Returns:
         int: 成功時は0、エラー時は1
     """
@@ -89,10 +84,6 @@ def main():
             signal_results = calculate_signals(tickers, is_test_mode)
             logger.info("テクニカル指標の計算が完了しました。")
             
-            # 計算されたテクニカル指標に基づいて売買シグナルを抽出（2025/12/27 休止）
-            # logger.info("Buy/Sellシグナルの抽出を開始します...")
-            # extract_success = extract_signals(is_test_mode)
-            
             # シグナル抽出後にブレイク銘柄の抽出処理を実行
             logger.info("ブレイク銘柄の抽出を開始します...")
             breakout_success = identify_breakouts(is_test_mode)
@@ -102,32 +93,6 @@ def main():
                 logger.info("ブレイク銘柄の抽出が完了しました。")
             else:
                 logger.error("ブレイク銘柄の抽出中にエラーが発生しました。")
-            
-            # # シグナル抽出の結果をログに記録（2025/12/27 休止）
-            # if extract_success:
-            #     logger.info("Buy/Sellシグナルの抽出が完了しました。")
-            # else:
-            #     logger.error("Buy/Sellシグナルの抽出中にエラーが発生しました。")
-            
-            # シグナル抽出後に強気トレンド銘柄の抽出処理を実行（2025/12/27 休止）
-            # logger.info("強気トレンド銘柄の抽出を開始します...")
-            # strong_buying_success = extract_strong_buying_trend(is_test_mode)
-                        
-            # 強気トレンド抽出の結果をログに記録（2025/12/27 休止）
-            # if strong_buying_success:
-            #     logger.info("強気トレンド銘柄の抽出が完了しました。")
-            # else:
-            #     logger.error("強気トレンド銘柄の抽出中にエラーが発生しました。")
-
-            # 強気トレンド銘柄抽出後に、強気売りトレンド銘柄の抽出処理を実行（2025/12/27 休止）
-            # logger.info("強気売りトレンド銘柄の抽出を開始します...")
-            # strong_selling_success = extract_strong_selling_trend(is_test_mode)
-                        
-            # 強気売りトレンド抽出の結果をログに記録（2025/12/27 休止）
-            # if strong_selling_success:
-            #     logger.info("強気売りトレンド銘柄の抽出が完了しました。")
-            # else:
-            #     logger.error("強気売りトレンド銘柄の抽出中にエラーが発生しました。")
             
             # 押し目銘柄の抽出処理を実行
             logger.info("押し目銘柄の抽出を開始します...")
@@ -139,30 +104,6 @@ def main():
             else:
                 logger.error("押し目銘柄の抽出中にエラーが発生しました。")
             
-            # BB-MACDシグナル抽出処理を実行（extract_signals.pyと同じ場所に出力）（2025/12/27 休止）
-            # logger.info("BB-MACDシグナル銘柄の抽出を開始します...")
-            # bb_macd_results = extract_BB_MACD_signals(is_test_mode)
-
-            # BB-MACDシグナル抽出の結果をログに記録（2025/12/27 休止）
-            # if bb_macd_results:
-            #     logger.info("BB-MACDシグナル銘柄の抽出が完了しました。")
-                
-                # サマリー統計の取得と表示
-                # summary = get_BB_MACD_signal_summary(is_test_mode)
-            # else:
-            #     logger.error("BB-MACDシグナル銘柄の抽出中にエラーが発生しました。")
-                
-            # 一目均衡表のシグナル抽出処理を実行
-            logger.info("一目均衡表情報の抽出を開始します...")
-            ichimoku_results = extract_all_ichimoku_signals(is_test_mode)
-
-            # 一目均衡表のシグナル抽出の結果をログに記録
-            if ichimoku_results:
-                logger.info("一目均衡表情報の抽出が完了しました。")
-            
-            else:
-                logger.error("一目均衡表情報の抽出中にエラーが発生しました。")
-    
         except Exception as e:
             # テクニカル指標計算中のエラーハンドリング
             logger.error(f"テクニカル指標の計算中にエラーが発生しました: {str(e)}")
