@@ -22,8 +22,7 @@ import config  # 設定値を管理するモジュール
 from data_loader import setup_logger, load_company_list  # ロガー設定と企業リスト読み込み関数
 from stock_fetcher import fetch_stock_data  # 株価データを取得する関数
 from technical_indicators import calculate_signals  # テクニカル指標を計算する関数
-from extract_signals import extract_push_mark_signals  # 押し目銘柄を抽出する関数
-from breakout import identify_breakouts  # ブレイク銘柄抽出関数
+from signal_extractor import identify_breakouts, extract_push_mark_signals  # ブレイク・押し目銘柄の抽出
 from result_backup import backup_previous_results  # 前回結果のバックアップ機能
 
 def main():
