@@ -12,21 +12,21 @@ from typing import Dict, Set, Tuple
 def backup_previous_results():
     """
     前回の結果ファイルをバックアップする
-    
-    StockSignal/Result/ にある Breakout.csv と push_mark.csv を
+
+    StockSignal/Result/ にある Breakout.csv / AllAbove.csv / push_mark.csv を
     StockSignal/Result/Previous/ にコピーします。
     """
     # 結果ディレクトリのパス
     result_dir = os.path.join(os.path.dirname(__file__), "Result")
     previous_dir = os.path.join(result_dir, "Previous")
-    
+
     # Previousディレクトリが存在しない場合は作成
     if not os.path.exists(previous_dir):
         os.makedirs(previous_dir)
         print(f"Previousディレクトリを作成しました: {previous_dir}")
-    
+
     # バックアップ対象ファイル
-    files_to_backup = ["Breakout.csv", "push_mark.csv"]
+    files_to_backup = ["Breakout.csv", "AllAbove.csv", "push_mark.csv"]
     
     for file_name in files_to_backup:
         source_path = os.path.join(result_dir, file_name)
@@ -45,54 +45,46 @@ def backup_previous_results():
 def get_consecutive_tickers() -> Dict[str, Set[str]]:
     """
     連続該当銘柄を特定する
-    
+
     Returns:
         Dict[str, Set[str]]: カテゴリ別の連続該当銘柄セット
             - 'breakout': ブレイク銘柄で連続該当の銘柄セット
+            - 'all_above': AllAbove銘柄で連続該当の銘柄セット
             - 'push_mark': 押し目買い銘柄で連続該当の銘柄セット
     """
     result_dir = os.path.join(os.path.dirname(__file__), "Result")
     previous_dir = os.path.join(result_dir, "Previous")
-    
+
     consecutive_tickers = {
         'breakout': set(),
+        'all_above': set(),
         'push_mark': set()
     }
-    
-    # ブレイク銘柄の連続該当をチェック
-    current_breakout_path = os.path.join(result_dir, "Breakout.csv")
-    previous_breakout_path = os.path.join(previous_dir, "Breakout.csv")
-    
-    if os.path.exists(current_breakout_path) and os.path.exists(previous_breakout_path):
-        try:
-            current_breakout = pd.read_csv(current_breakout_path)
-            previous_breakout = pd.read_csv(previous_breakout_path)
-            
-            current_tickers = set(current_breakout['Ticker'].astype(str))
-            previous_tickers = set(previous_breakout['Ticker'].astype(str))
-            
-            consecutive_tickers['breakout'] = current_tickers.intersection(previous_tickers)
-            print(f"ブレイク銘柄連続該当数: {len(consecutive_tickers['breakout'])}")
-        except Exception as e:
-            print(f"ブレイク銘柄連続該当チェックエラー: {e}")
-    
-    # 押し目買い銘柄の連続該当をチェック
-    current_push_mark_path = os.path.join(result_dir, "push_mark.csv")
-    previous_push_mark_path = os.path.join(previous_dir, "push_mark.csv")
-    
-    if os.path.exists(current_push_mark_path) and os.path.exists(previous_push_mark_path):
-        try:
-            current_push_mark = pd.read_csv(current_push_mark_path)
-            previous_push_mark = pd.read_csv(previous_push_mark_path)
-            
-            current_tickers = set(current_push_mark['Ticker'].astype(str))
-            previous_tickers = set(previous_push_mark['Ticker'].astype(str))
-            
-            consecutive_tickers['push_mark'] = current_tickers.intersection(previous_tickers)
-            print(f"押し目買い銘柄連続該当数: {len(consecutive_tickers['push_mark'])}")
-        except Exception as e:
-            print(f"押し目買い銘柄連続該当チェックエラー: {e}")
-    
+
+    # カテゴリとファイル名の対応
+    categories = [
+        ('breakout', 'Breakout.csv', 'ブレイク'),
+        ('all_above', 'AllAbove.csv', 'AllAbove'),
+        ('push_mark', 'push_mark.csv', '押し目買い'),
+    ]
+
+    for key, file_name, label in categories:
+        current_path = os.path.join(result_dir, file_name)
+        previous_path = os.path.join(previous_dir, file_name)
+
+        if os.path.exists(current_path) and os.path.exists(previous_path):
+            try:
+                current_df = pd.read_csv(current_path)
+                previous_df = pd.read_csv(previous_path)
+
+                current_tickers = set(current_df['Ticker'].astype(str))
+                previous_tickers = set(previous_df['Ticker'].astype(str))
+
+                consecutive_tickers[key] = current_tickers.intersection(previous_tickers)
+                print(f"{label}銘柄連続該当数: {len(consecutive_tickers[key])}")
+            except Exception as e:
+                print(f"{label}銘柄連続該当チェックエラー: {e}")
+
     return consecutive_tickers
 
 def decorate_company_name(ticker: str, company_name: str, consecutive_tickers: Dict[str, Set[str]]) -> str:
@@ -108,10 +100,11 @@ def decorate_company_name(ticker: str, company_name: str, consecutive_tickers: D
         str: 装飾された銘柄名
     """
     ticker_str = str(ticker)
-    
-    # ブレイク銘柄または押し目買い銘柄で連続該当の場合
-    if (ticker_str in consecutive_tickers.get('breakout', set()) or 
+
+    # いずれかのカテゴリで連続該当している場合
+    if (ticker_str in consecutive_tickers.get('breakout', set()) or
+        ticker_str in consecutive_tickers.get('all_above', set()) or
         ticker_str in consecutive_tickers.get('push_mark', set())):
         return f"◎{company_name}"
-    
+
     return company_name

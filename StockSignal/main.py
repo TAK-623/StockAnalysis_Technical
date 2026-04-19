@@ -22,7 +22,7 @@ import config  # 設定値を管理するモジュール
 from data_loader import setup_logger, load_company_list  # ロガー設定と企業リスト読み込み関数
 from stock_fetcher import fetch_stock_data  # 株価データを取得する関数
 from technical_indicators import calculate_signals  # テクニカル指標を計算する関数
-from signal_extractor import identify_breakouts, extract_push_mark_signals  # ブレイク・押し目銘柄の抽出
+from signal_extractor import identify_breakouts, extract_all_above_signals, extract_push_mark_signals  # ブレイク・AllAbove・押し目銘柄の抽出
 from result_backup import backup_previous_results  # 前回結果のバックアップ機能
 
 def main():
@@ -36,7 +36,8 @@ def main():
     4. 株価データの取得（yfinance API使用）
     5. テクニカル指標の計算（移動平均、RSI、MACD、RCI、一目均衡表など）
     6. ブレイクアウト銘柄の検出
-    7. 押し目銘柄の検出
+    7. AllAbove銘柄の検出
+    8. 押し目銘柄の検出
 
     Returns:
         int: 成功時は0、エラー時は1
@@ -86,13 +87,22 @@ def main():
             # シグナル抽出後にブレイク銘柄の抽出処理を実行
             logger.info("ブレイク銘柄の抽出を開始します...")
             breakout_success = identify_breakouts(is_test_mode)
-                        
+
             # ブレイク抽出の結果をログに記録
             if breakout_success:
                 logger.info("ブレイク銘柄の抽出が完了しました。")
             else:
                 logger.error("ブレイク銘柄の抽出中にエラーが発生しました。")
-            
+
+            # AllAbove銘柄の抽出処理を実行
+            logger.info("AllAbove銘柄の抽出を開始します...")
+            all_above_success = extract_all_above_signals(is_test_mode)
+
+            if all_above_success:
+                logger.info("AllAbove銘柄の抽出が完了しました。")
+            else:
+                logger.error("AllAbove銘柄の抽出中にエラーが発生しました。")
+
             # 押し目銘柄の抽出処理を実行
             logger.info("押し目銘柄の抽出を開始します...")
             push_mark_success = extract_push_mark_signals(is_test_mode)

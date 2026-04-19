@@ -2,7 +2,7 @@
 シグナル抽出モジュール - テクニカル指標CSVから条件に合致する銘柄を抽出
 
 このモジュールは、テクニカル指標の計算結果から、投資判断に使うシグナル銘柄を
-抽出する機能を提供します。現在サポートしているシグナルは以下の2種類です：
+抽出する機能を提供します。現在サポートしているシグナルは以下の3種類です：
 
 1. ブレイクアウト銘柄 (identify_breakouts)
    - 直近3か月の前日までの最高値を終値が更新
@@ -10,7 +10,13 @@
    - 終値が高値と安値の中間より上
    - 陽線で引けている
 
-2. 押し目狙い銘柄 (extract_push_mark_signals)
+2. AllAbove銘柄 (extract_all_above_signals)
+   - パーフェクトオーダー（短期MA > 中期MA > 長期MA）
+   - 最新ローソク足の始値と終値の中間値が短期MA以上
+   - 終値が500円以上
+   - 出来高が20万以上
+
+3. 押し目狙い銘柄 (extract_push_mark_signals)
    - 中期移動平均線が上昇中
    - 終値が短期移動平均線より上
    - 直近3日以内に短期移動平均線の変動率がマイナスだった日がある
@@ -18,7 +24,7 @@
    - 出来高が10万以上
    - 出来高が出来高移動平均線より多い
 
-抽出結果は Result/Breakout.csv / Result/push_mark.csv に出力されます。
+抽出結果は Result/Breakout.csv / Result/AllAbove.csv / Result/push_mark.csv に出力されます。
 """
 import os
 import time
@@ -260,6 +266,147 @@ def identify_breakouts(is_test_mode: bool = False) -> bool:
 
 
 # =====================================================================
+# AllAbove銘柄抽出
+# =====================================================================
+
+def extract_all_above_signals(is_test_mode: bool = False) -> bool:
+    """
+    AllAbove銘柄を抽出してCSVファイルに出力します
+
+    抽出条件:
+    1. パーフェクトオーダー（短期MA > 中期MA > 長期MA）
+    2. 最新ローソク足の始値と終値の中間値が短期MA以上
+    3. 終値が500円以上
+    4. 出来高が20万以上
+
+    Args:
+        is_test_mode: テストモード時は別ディレクトリのデータを使用
+
+    Returns:
+        bool: 処理が成功した場合はTrue、エラー時はFalse
+    """
+    logger = logging.getLogger("StockSignal")
+    logger.info("AllAbove銘柄の抽出を開始します")
+
+    try:
+        # 入出力ディレクトリの設定
+        if is_test_mode:
+            input_dir = os.path.join(config.TEST_DIR, "StockSignal", "TechnicalSignal")
+            output_dir = os.path.join(config.TEST_DIR, "Result")
+        else:
+            input_dir = os.path.join(config.BASE_DIR, "StockSignal", "TechnicalSignal")
+            output_dir = os.path.join(config.BASE_DIR, "StockSignal", "Result")
+
+        os.makedirs(output_dir, exist_ok=True)
+
+        input_file = os.path.join(input_dir, config.LATEST_SIGNAL_FILE)
+        if not os.path.exists(input_file):
+            logger.error(f"ファイルが見つかりません: {input_file}")
+            return False
+
+        logger.info(f"{input_file} を読み込みます")
+        latest_df = pd.read_csv(input_file, index_col=0, parse_dates=True)
+
+        # 移動平均線のカラム名 (MA_PERIODS = [5, 20, 60])
+        short_ma = f'MA{config.MA_PERIODS[0]}'
+        mid_ma = f'MA{config.MA_PERIODS[1]}'
+        long_ma = f'MA{config.MA_PERIODS[2]}'
+
+        required_columns = ['Ticker', 'Company', 'Theme']
+        missing_columns = [col for col in required_columns if col not in latest_df.columns]
+        if missing_columns:
+            logger.error(f"必要なカラムがCSVファイルに見つかりません: {missing_columns}")
+            return False
+
+        all_tickers = latest_df['Ticker'].unique()
+        logger.info(f"処理対象の全銘柄数: {len(all_tickers)}")
+
+        all_above_tickers = []
+
+        for ticker in all_tickers:
+            try:
+                ticker_signal_file = os.path.join(input_dir, f"{ticker}_signal.csv")
+                if not os.path.exists(ticker_signal_file):
+                    continue
+
+                ticker_df = pd.read_csv(ticker_signal_file, index_col=0, parse_dates=True)
+                if ticker_df.empty:
+                    continue
+
+                required_cols = ['Open', 'Close', 'Volume', short_ma, mid_ma, long_ma]
+                if not all(col in ticker_df.columns for col in required_cols):
+                    continue
+
+                latest_row = ticker_df.iloc[-1]
+
+                if pd.isna(latest_row[short_ma]) or pd.isna(latest_row[mid_ma]) or pd.isna(latest_row[long_ma]):
+                    continue
+
+                # 条件1: パーフェクトオーダー（短期MA > 中期MA > 長期MA）
+                condition1 = (latest_row[short_ma] > latest_row[mid_ma]) and (latest_row[mid_ma] > latest_row[long_ma])
+
+                # 条件2: 最新ローソク足の始値と終値の中間値が短期MA以上
+                mid_price = (latest_row['Open'] + latest_row['Close']) / 2
+                condition2 = mid_price >= latest_row[short_ma]
+
+                # 条件3: 終値が500円以上
+                condition3 = latest_row['Close'] >= 500
+
+                # 条件4: 出来高が20万以上
+                condition4 = latest_row['Volume'] >= 200000
+
+                if not (condition1 and condition2 and condition3 and condition4):
+                    continue
+
+                company_info = latest_df[latest_df['Ticker'] == ticker].iloc[0]
+                all_above_tickers.append({
+                    'Ticker': ticker,
+                    'Company': company_info.get('Company', ''),
+                    'テーマ': company_info.get('Theme', ''),
+                    '最新の終値': latest_row['Close'],
+                    '中間値': mid_price,
+                    '短期移動平均': latest_row[short_ma],
+                    '中期移動平均': latest_row[mid_ma],
+                    '長期移動平均': latest_row[long_ma],
+                })
+
+            except Exception as e:
+                logger.warning(f"銘柄 {ticker} の処理中にエラーが発生しました: {str(e)}")
+                continue
+
+        # 結果を出力
+        output_file = os.path.join(output_dir, "AllAbove.csv")
+
+        if all_above_tickers:
+            all_above_df = pd.DataFrame(all_above_tickers)
+            all_above_df['中間値'] = all_above_df['中間値'].round(2)
+            all_above_df['短期移動平均'] = all_above_df['短期移動平均'].round(2)
+            all_above_df['中期移動平均'] = all_above_df['中期移動平均'].round(2)
+            all_above_df['長期移動平均'] = all_above_df['長期移動平均'].round(2)
+            all_above_df['最新の終値'] = all_above_df['最新の終値'].apply(
+                lambda x: int(x) if x == int(x) else round(x, 1)
+            )
+            all_above_df.to_csv(output_file, index=False, encoding='utf-8-sig')
+            logger.info(f"AllAbove銘柄: {len(all_above_df)}件を {output_file} に出力しました")
+        else:
+            logger.info("条件を満たすAllAbove銘柄は見つかりませんでした")
+            empty_df = pd.DataFrame(columns=[
+                'Ticker', 'Company', 'テーマ', '最新の終値', '中間値',
+                '短期移動平均', '中期移動平均', '長期移動平均'
+            ])
+            empty_df.to_csv(output_file, index=False, encoding='utf-8-sig')
+            logger.info(f"空のAllAboveファイルを {output_file} に出力しました")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"AllAbove銘柄抽出処理中にエラーが発生しました: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return False
+
+
+# =====================================================================
 # 押し目銘柄抽出
 # =====================================================================
 
@@ -428,9 +575,9 @@ if __name__ == "__main__":
 
     from data_loader import setup_logger
 
-    parser = argparse.ArgumentParser(description='シグナル抽出ツール（ブレイクアウト・押し目）')
+    parser = argparse.ArgumentParser(description='シグナル抽出ツール（ブレイクアウト・AllAbove・押し目）')
     parser.add_argument('--test', action='store_true', help='テストモードで実行')
-    parser.add_argument('--type', choices=['breakout', 'push_mark', 'all'], default='breakout',
+    parser.add_argument('--type', choices=['breakout', 'all_above', 'push_mark', 'all'], default='breakout',
                         help='抽出するシグナルの種類（デフォルト: breakout）')
     args = parser.parse_args()
 
@@ -438,9 +585,15 @@ if __name__ == "__main__":
 
     if args.type == 'breakout':
         success = identify_breakouts(args.test)
+    elif args.type == 'all_above':
+        success = extract_all_above_signals(args.test)
     elif args.type == 'push_mark':
         success = extract_push_mark_signals(args.test)
     else:  # all
-        success = identify_breakouts(args.test) and extract_push_mark_signals(args.test)
+        success = (
+            identify_breakouts(args.test)
+            and extract_all_above_signals(args.test)
+            and extract_push_mark_signals(args.test)
+        )
 
     sys.exit(0 if success else 1)
