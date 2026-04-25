@@ -36,8 +36,6 @@ import time
 from matplotlib import font_manager as fm
 from PIL import Image
 import math
-import yfinance as yf
-from typing import Optional
 import shutil
 
 # 結果バックアップ機能のインポート
@@ -166,45 +164,6 @@ def load_company_names():
         print(f"銘柄名ファイルの読み込みエラー: {e}")
         return {}
 
-def get_roe_for_ticker(ticker) -> Optional[float]:
-    """
-    指定された銘柄のROE情報をyfinanceから取得
-    
-    Args:
-        ticker: 銘柄コード（例: "7203.T" または 7203）
-    
-    Returns:
-        ROE値（パーセンテージ）、取得できない場合はNone
-    """
-    try:
-        # tickerを文字列に変換
-        ticker_str = str(ticker)
-        
-        # 日本株の場合は.Tを付ける
-        if not ticker_str.endswith('.T'):
-            ticker_with_suffix = f"{ticker_str}.T"
-        else:
-            ticker_with_suffix = ticker_str
-        
-        # yfinanceでティッカー情報を取得
-        stock = yf.Ticker(ticker_with_suffix)
-        
-        # 基本情報からROEを直接取得
-        info = stock.info
-        roe = info.get('returnOnEquity')
-        
-        if roe is not None:
-            # 小数形式をパーセンテージに変換
-            roe_percentage = roe * 100
-            return round(roe_percentage, 2)
-        else:
-            return None
-            
-    except Exception as e:
-        ticker_str = str(ticker)
-        print(f"{ticker_str}: ROE取得中にエラーが発生しました: {str(e)}")
-        return None
-
 def load_stock_data(ticker):
     """
     指定されたティッカーの株価データを読み込み
@@ -268,11 +227,6 @@ def generate_chart(ticker, company_names, consecutive_tickers=None):
         # 連続該当銘柄の場合、銘柄名の先頭に「◎」を付与
         if consecutive_tickers:
             company_name = decorate_company_name(ticker, company_name, consecutive_tickers)
-        
-        # ROE情報を取得してROE値を追加
-        roe = get_roe_for_ticker(ticker)
-        if roe is not None:
-            company_name += f' (ROE：{roe:.2f}%)'
         
         # mplfinance 形式に変換
         df_mpf = df.copy()
